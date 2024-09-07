@@ -1,0 +1,55 @@
+[package]
+name = "emmett-core"
+version = "0.1.0"
+description = "Emmett framework core libraries"
+authors = ["Giovanni Barillari <g@baro.dev>"]
+license = "BSD-3-Clause"
+edition = "2021"
+
+keywords = ["web"]
+
+readme = "README.md"
+homepage = "https://github.com/emmett-framework/core"
+repository = "https://github.com/emmett-framework/core"
+
+include = [
+    "/Cargo.toml",
+    "/pyproject.toml",
+    "/LICENSE",
+    "/README.md",
+    "/src",
+    "/emmett_core",
+    "/tests",
+    "!__pycache__",
+    "!.pytest_cache",
+    "!.ruff_cache",
+    "!*.so",
+]
+
+[lib]
+name = "_emmett_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+aes = { version = "=0.8" }
+anyhow = "=1.0"
+cfb8 = { version = "=0.8" }
+cfb-mode = { version = "=0.8" }
+ctr = { version = "=0.9" }
+pyo3 = { version = "=0.22", features = ["anyhow", "extension-module", "generate-import-lib"] }
+ring = { version = "=0.16" }
+
+[target.'cfg(any(target_os = "freebsd", target_os = "windows"))'.dependencies]
+mimalloc = { version = "0.1.43", default-features = false, features = ["local_dynamic_tls"] }
+
+[target.'cfg(not(any(target_os = "freebsd", target_os = "windows")))'.dependencies]
+tikv-jemallocator = { version = "0.6.0", default-features = false, features = ["disable_initial_exec_tls"] }
+
+[profile.release]
+codegen-units = 1
+debug = false
+incremental = false
+lto = "fat"
+opt-level = 3
+panic = "abort"
+strip = true
