@@ -2,7 +2,7 @@ use anyhow::Result;
 use pyo3::{prelude::*, types::PyDict};
 use std::{collections::HashMap, convert::identity};
 
-use super::{get_route_tree, match_scheme_route_tree, RouteMap, RouteMapMatch};
+use super::{get_route_tree, match_re_routes, match_scheme_route_tree, ReGroupType, RouteMap, RouteMapMatch};
 
 #[derive(Default)]
 struct WSRouteMap {
@@ -18,10 +18,6 @@ struct WSRouterData {
 
 #[pyclass(module = "emmett_core._emmett_core", subclass)]
 pub(super) struct WSRouter {
-    #[pyo3(get)]
-    app: PyObject,
-    #[pyo3(get)]
-    current: PyObject,
     routes: WSRouterData,
     pydict: PyObject,
     pynone: PyObject,
@@ -37,24 +33,7 @@ impl WSRouter {
     ) -> Option<(PyObject, PyObject)> {
         match routes.r#static.get(path) {
             Some(route) => Some((route.clone_ref(py), pydict.clone_ref(py))),
-            None => {
-                if let Some((route, gnames, mgroups)) = py.allow_threads(|| {
-                    for (rpath, groupnames, robj) in &routes.r#match {
-                        if rpath.is_match(path) {
-                            let groups = rpath.captures(path).unwrap();
-                            return Some((robj, groupnames, groups));
-                        }
-                    }
-                    None
-                }) {
-                    let pydict = PyDict::new_bound(py);
-                    for gname in gnames {
-                        let _ = pydict.set_item(&gname[..], mgroups.name(gname).map(|v| v.as_str()));
-                    }
-                    return Some((route.clone_ref(py), pydict.into_py(py)));
-                }
-                None
-            }
+            None => match_re_routes!(py, routes, path),
         }
     }
 }
@@ -62,10 +41,9 @@ impl WSRouter {
 #[pymethods]
 impl WSRouter {
     #[new]
-    fn new(py: Python, app: PyObject, current: PyObject) -> Self {
+    #[pyo3(signature = (*_args, **_kwargs))]
+    fn new(py: Python, _args: &Bound<PyAny>, _kwargs: Option<&Bound<PyAny>>) -> Self {
         Self {
-            app,
-            current,
             pydict: PyDict::new_bound(py).into(),
             pynone: py.None(),
             routes: WSRouterData {
@@ -87,12 +65,35 @@ impl WSRouter {
         node_method.r#static = node;
     }
 
-    #[pyo3(signature = (route, rule, host=None, scheme=None))]
-    fn add_re_route(&mut self, route: PyObject, rule: &str, host: Option<&str>, scheme: Option<&str>) -> Result<()> {
+    #[pyo3(signature = (route, rule, rgtmap, host=None, scheme=None))]
+    fn add_re_route(
+        &mut self,
+        route: PyObject,
+        rule: &str,
+        rgtmap: &Bound<PyDict>,
+        host: Option<&str>,
+        scheme: Option<&str>,
+    ) -> Result<()> {
         let re = regex::Regex::new(rule)?;
         let mut re_groups = re.capture_names();
         re_groups.next();
-        let groups: Vec<Box<str>> = re_groups.flatten().map(std::convert::Into::into).collect();
+        let groupsn: Vec<&str> = re_groups.flatten().collect();
+        let mut groups: Vec<(Box<str>, ReGroupType)> = Vec::with_capacity(groupsn.len());
+        for key in groupsn {
+            let atype = match rgtmap.get_item(key)? {
+                Some(mapv) => {
+                    let atype = mapv.extract::<String>()?;
+                    match &atype[..] {
+                        "int" => ReGroupType::Int,
+                        "float" => ReGroupType::Float,
+                        "date" => ReGroupType::Date,
+                        _ => ReGroupType::Any,
+                    }
+                }
+                _ => ReGroupType::Any,
+            };
+            groups.push((key.into(), atype));
+        }
         let node_method = get_route_tree!(WSRouteMap, self.routes, host, scheme);
         let mut nodec: RouteMapMatch = Vec::with_capacity(node_method.r#match.len() + 1);
         nodec.push((re, groups, route));

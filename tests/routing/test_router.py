@@ -1,3 +1,4 @@
+import datetime
 from contextlib import contextmanager
 
 import pytest
@@ -55,6 +56,10 @@ def cfg_http_router(current, http_router):
 
     @route(http_router, "/test3/<int:a>/foo(/<str:b>)?(.<str:c>)?")
     def test_route3(a, b, c):
+        return "Test Router"
+
+    @route(http_router, "/test4/<str:a>/foo(/<int:b>)?(.<str:c>)?")
+    def test_route4(a, b, c):
         return "Test Router"
 
     @route(http_router, "/test_int/<int:a>")
@@ -138,7 +143,16 @@ def test_http_routing_miss(cfg_http_router, http_ctx_builder, path):
         assert not args
 
 
-def test_http_routing_args(): ...
+def test_http_routing_args(cfg_http_router, http_ctx_builder):
+    with http_ctx_builder("/test_complex/1/1.2/2000-12-01/foo/foo1/bar/baz") as ctx:
+        route, args = cfg_http_router.match(ctx.request)
+        assert route.name == "test_router.test_route_complex"
+        assert args["a"] == 1
+        assert round(args["b"], 1) == 1.2
+        assert args["c"] == datetime.date(2000, 12, 1)
+        assert args["d"] == "foo"
+        assert args["e"] == "foo1"
+        assert args["f"] == "bar/baz"
 
 
 def test_http_routing_with_scheme(): ...

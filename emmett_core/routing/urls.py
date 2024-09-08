@@ -83,7 +83,7 @@ class HttpUrlBuilder(UrlBuilder):
 
 class Url:
     __slots__ = ["current"]
-    http_to_ws_schemes = {"http": "ws", "https": "wss"}
+    _http_to_ws_schemes = {"http": "ws", "https": "wss"}
 
     def __init__(self, current) -> None:
         self.current = current
@@ -188,7 +188,7 @@ class Url:
                     # TODO: remap host
                     try:
                         if self.current.request.host != url_host:
-                            scheme = self.http_to_ws_schemes[self.current.request.scheme]
+                            scheme = self._http_to_ws_schemes[self.current.request.scheme]
                             host = url_host
                     except Exception:
                         pass
@@ -214,7 +214,7 @@ class Url:
         if scheme is True:
             if not hasattr(self.current, "request"):
                 raise RuntimeError(f'cannot build url("{path}",...) without current request')
-            scheme = self.http_to_ws_schemes[self.current.request.scheme]
+            scheme = self._http_to_ws_schemes[self.current.request.scheme]
         # add scheme and host
         if scheme:
             if host is None:

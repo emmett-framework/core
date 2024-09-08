@@ -174,7 +174,6 @@ class HTTPRouter(_HTTPRouter):
     def add_route(self, route):
         if route.hostname:
             self._impl_host_match = True
-        # TODO: fix
         if len(route.schemes) % 2:
             self._impl_scheme_match = True
             _scheme = "secure" if route.schemes[0] == "https" else "plain"
@@ -194,6 +193,7 @@ class HTTPRouter(_HTTPRouter):
                 self.add_re_route(
                     self._routing_rec_builder(name=route.name, dispatch=route.dispatchers[method].dispatch),
                     route.build_regex(route.path),
+                    route._argtypes,
                     method,
                     route.hostname,
                     _scheme,
@@ -228,7 +228,6 @@ class HTTPRouter(_HTTPRouter):
         return await match.dispatch(reqargs, response)
 
 
-# TODO
 class WebsocketRouter(_HTTPRouter):
     __slots__ = [
         "__call__",
@@ -261,7 +260,7 @@ class WebsocketRouter(_HTTPRouter):
 
     def add_route_str(self, route):
         self._routes_str[route.name] = "%s://%s%s%s -> %s" % (
-            "|".join(route.schemes),
+            "|".join([{"http": "ws", "https": "ws"}[scheme] for scheme in route.schemes]),
             route.hostname or "<any>",
             self._prefix_main,
             route.path,
@@ -271,7 +270,6 @@ class WebsocketRouter(_HTTPRouter):
     def add_route(self, route):
         if route.hostname:
             self._impl_host_match = True
-        # TODO: fix
         if len(route.schemes) % 2:
             self._impl_scheme_match = True
             _scheme = "secure" if route.schemes[0] == "https" else "plain"
@@ -299,6 +297,7 @@ class WebsocketRouter(_HTTPRouter):
                     flow_send=route.pipeline_flow_send,
                 ),
                 route.build_regex(route.path),
+                route._argtypes,
                 route.hostname,
                 _scheme,
             )

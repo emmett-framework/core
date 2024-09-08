@@ -1,9 +1,5 @@
-import datetime
 import re
-from functools import wraps
 
-# import pendulum
-from ..http.response import HTTPResponse
 from .dispatchers import (
     # CacheCloseDispatcher,
     # CacheDispatcher,
@@ -33,14 +29,12 @@ class Route:
         "f",
         "hostname",
         "is_static",
-        "match",
         "name",
-        "parse_reqargs",
         "path",
         "pipeline_flow_close",
         "pipeline_flow_open",
-        "regex",
         "schemes",
+        "_argtypes",
     ]
     _re_condl = re.compile(r"\(.*\)\?")
     _re_param = re.compile(r"<(\w+)\:(\w+)>")
@@ -55,11 +49,24 @@ class Route:
         self.path = path
         self.schemes = tuple(rule.schemes)
         self.hostname = rule.hostname
-        self.regex = re.compile(self.build_regex(self.path))
         self.pipeline_flow_open = rule.pipeline_flow_open
         self.pipeline_flow_close = rule.pipeline_flow_close
-        self.build_matcher()
-        self.build_argparser()
+        self._init_match_type()
+        self._build_argtmap()
+
+    def _init_match_type(self):
+        if self._re_condl.findall(self.path) or self._re_param.findall(self.path):
+            self.is_static = False
+        else:
+            self.is_static = True
+
+    def _build_argtmap(self):
+        types = {"int", "float", "date"}
+        tmap = {}
+        for argtype in types:
+            for arg in set(re.compile(r"<{}\:(\w+)>".format(argtype)).findall(self.path)):
+                tmap[arg] = argtype
+        self._argtypes = tmap
 
     @staticmethod
     def build_regex(path):
@@ -70,114 +77,6 @@ class Route:
         path = REGEX_DATE.sub(r"(?P<\g<1>>\\d{4}-\\d{2}-\\d{2})", path)
         path = REGEX_FLOAT.sub(r"(?P<\g<1>>\\d+\.\\d+)", path)
         return f"^{path}$"
-
-    def match_simple(self, path):
-        return path == self.path, {}
-
-    def match_regex(self, path):
-        match = self.regex.match(path)
-        if match:
-            return True, self.parse_reqargs(match)
-        return False, {}
-
-    def build_matcher(self):
-        if self._re_condl.findall(self.path) or self._re_param.findall(self.path):
-            matcher, is_static = self.match_regex, False
-        else:
-            matcher, is_static = self.match_simple, True
-        self.match = matcher
-        self.is_static = is_static
-
-    def build_argparser(self):
-        parsers = {"int": self._parse_int_reqarg, "float": self._parse_float_reqarg, "date": self._parse_date_reqarg}
-        opt_parsers = {
-            "int": self._parse_int_reqarg_opt,
-            "float": self._parse_float_reqarg_opt,
-            "date": self._parse_date_reqarg_opt,
-        }
-        pipeline = []
-        for key in parsers.keys():
-            optionals = []
-            for element in re.compile(r"\(([^<]+)?<{}\:(\w+)>\)\?".format(key)).findall(self.path):
-                optionals.append(element[1])
-            elements = set(re.compile(r"<{}\:(\w+)>".format(key)).findall(self.path))
-            args = elements - set(optionals)
-            if args:
-                parser = self._wrap_reqargs_parser(parsers[key], args)
-                pipeline.append(parser)
-            if optionals:
-                parser = self._wrap_reqargs_parser(opt_parsers[key], optionals)
-                pipeline.append(parser)
-        if pipeline:
-            self.parse_reqargs = self._wrap_reqargs_pipeline(pipeline)
-        else:
-            self.parse_reqargs = self._parse_reqargs
-
-    @staticmethod
-    def _parse_reqargs(match):
-        return match.groupdict()
-
-    @staticmethod
-    def _parse_int_reqarg(args, route_args):
-        for arg in args:
-            route_args[arg] = int(route_args[arg])
-
-    @staticmethod
-    def _parse_int_reqarg_opt(args, route_args):
-        for arg in args:
-            if route_args[arg] is None:
-                continue
-            route_args[arg] = int(route_args[arg])
-
-    @staticmethod
-    def _parse_float_reqarg(args, route_args):
-        for arg in args:
-            route_args[arg] = float(route_args[arg])
-
-    @staticmethod
-    def _parse_float_reqarg_opt(args, route_args):
-        for arg in args:
-            if route_args[arg] is None:
-                continue
-            route_args[arg] = float(route_args[arg])
-
-    @staticmethod
-    def _parse_date_reqarg(args, route_args):
-        try:
-            for arg in args:
-                # route_args[arg] = pendulum.DateTime.strptime(route_args[arg], "%Y-%m-%d")
-                route_args[arg] = datetime.datetime.strptime(route_args[arg], "%Y-%m-%d")
-        except Exception:
-            raise HTTPResponse(404)
-
-    @staticmethod
-    def _parse_date_reqarg_opt(args, route_args):
-        try:
-            for arg in args:
-                if route_args[arg] is None:
-                    continue
-                # route_args[arg] = pendulum.DateTime.strptime(route_args[arg], "%Y-%m-%d")
-                route_args[arg] = datetime.datetime.strptime(route_args[arg], "%Y-%m-%d")
-        except Exception:
-            raise HTTPResponse(404)
-
-    @staticmethod
-    def _wrap_reqargs_parser(parser, args):
-        @wraps(parser)
-        def wrapped(route_args):
-            return parser(args, route_args)
-
-        return wrapped
-
-    @staticmethod
-    def _wrap_reqargs_pipeline(parsers):
-        def wrapped(match):
-            route_args = match.groupdict()
-            for parser in parsers:
-                parser(route_args)
-            return route_args
-
-        return wrapped
 
     def build_dispatcher(self, rule):
         raise NotImplementedError

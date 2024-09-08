@@ -7,6 +7,9 @@ from ..pipeline import Pipe, RequestPipeline, WebsocketPipeline
 from .routes import HTTPRoute, WebsocketRoute
 
 
+ALLOWED_SCHEMES = {"http", "https"}
+
+
 class RoutingRule:
     __slots__ = ["router"]
 
@@ -81,6 +84,8 @@ class HTTPRoutingRule(RoutingRule):
         self.schemes = schemes or ("http", "https")
         if not isinstance(self.schemes, (list, tuple)):
             self.schemes = (self.schemes,)
+        if not set(self.schemes).issubset(ALLOWED_SCHEMES):
+            raise SyntaxError(f"Invalid schemes specified. Allowed values are: {', '.join(ALLOWED_SCHEMES)}")
         self.methods = methods or ("get", "post", "head")
         if not isinstance(self.methods, (list, tuple)):
             self.methods = (self.methods,)
@@ -90,9 +95,7 @@ class HTTPRoutingRule(RoutingRule):
                 prefix = "/" + prefix
         self.prefix = prefix
         if output not in self.router._outputs:
-            raise SyntaxError(
-                "Invalid output specified. Allowed values are: {}".format(", ".join(self.router._outputs.keys()))
-            )
+            raise SyntaxError(f"Invalid output specified. Allowed values are: {', '.join(self.router._outputs.keys())}")
         self.output_type = output
         # self.template = template
         # self.template_folder = template_folder

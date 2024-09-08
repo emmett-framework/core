@@ -2,7 +2,7 @@ use anyhow::Result;
 use pyo3::{prelude::*, types::PyDict};
 use std::{collections::HashMap, convert::identity};
 
-use super::{get_route_tree, match_scheme_route_tree, RouteMap, RouteMapMatch};
+use super::{get_route_tree, match_re_routes, match_scheme_route_tree, ReGroupType, RouteMap, RouteMapMatch};
 
 type HTTPRouteMapNode = HashMap<Box<str>, RouteMap>;
 
@@ -39,10 +39,6 @@ macro_rules! get_route_node_mut {
 
 #[pyclass(module = "emmett_core._emmett_core", subclass)]
 pub(super) struct HTTPRouter {
-    // #[pyo3(get)]
-    // app: PyObject,
-    // #[pyo3(get)]
-    // current: PyObject,
     routes: HTTPRouterData,
     pydict: PyObject,
     pynone: PyObject,
@@ -60,23 +56,7 @@ impl HTTPRouter {
         if let Some(routes) = routes_node.get(method) {
             match routes.r#static.get(path) {
                 Some(route) => return Some((route.clone_ref(py), pydict.clone_ref(py))),
-                None => {
-                    if let Some((route, gnames, mgroups)) = py.allow_threads(|| {
-                        for (rpath, groupnames, robj) in &routes.r#match {
-                            if rpath.is_match(path) {
-                                let groups = rpath.captures(path).unwrap();
-                                return Some((robj, groupnames, groups));
-                            }
-                        }
-                        None
-                    }) {
-                        let pydict = PyDict::new_bound(py);
-                        for gname in gnames {
-                            let _ = pydict.set_item(&gname[..], mgroups.name(gname).map(|v| v.as_str()));
-                        }
-                        return Some((route.clone_ref(py), pydict.into_py(py)));
-                    }
-                }
+                None => return match_re_routes!(py, routes, path),
             }
         }
         None
@@ -117,11 +97,12 @@ impl HTTPRouter {
         node_method.r#static = node;
     }
 
-    #[pyo3(signature = (route, rule, method, host=None, scheme=None))]
+    #[pyo3(signature = (route, rule, rgtmap, method, host=None, scheme=None))]
     fn add_re_route(
         &mut self,
         route: PyObject,
         rule: &str,
+        rgtmap: &Bound<PyDict>,
         method: &str,
         host: Option<&str>,
         scheme: Option<&str>,
@@ -129,7 +110,23 @@ impl HTTPRouter {
         let re = regex::Regex::new(rule)?;
         let mut re_groups = re.capture_names();
         re_groups.next();
-        let groups: Vec<Box<str>> = re_groups.flatten().map(std::convert::Into::into).collect();
+        let groupsn: Vec<&str> = re_groups.flatten().collect();
+        let mut groups: Vec<(Box<str>, ReGroupType)> = Vec::with_capacity(groupsn.len());
+        for key in groupsn {
+            let atype = match rgtmap.get_item(key)? {
+                Some(mapv) => {
+                    let atype = mapv.extract::<String>()?;
+                    match &atype[..] {
+                        "int" => ReGroupType::Int,
+                        "float" => ReGroupType::Float,
+                        "date" => ReGroupType::Date,
+                        _ => ReGroupType::Any,
+                    }
+                }
+                _ => ReGroupType::Any,
+            };
+            groups.push((key.into(), atype));
+        }
         let node_method = get_route_node_mut!(self.routes, host, scheme, method);
         let mut nodec: RouteMapMatch = Vec::with_capacity(node_method.r#match.len() + 1);
         nodec.push((re, groups, route));
