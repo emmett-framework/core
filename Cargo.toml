@@ -31,13 +31,14 @@ name = "_emmett_core"
 crate-type = ["cdylib"]
 
 [dependencies]
-aes = { version = "=0.8" }
+aes = "=0.8"
 anyhow = "=1.0"
-cfb8 = { version = "=0.8" }
-cfb-mode = { version = "=0.8" }
-ctr = { version = "=0.9" }
+cfb8 = "=0.8"
+cfb-mode = "=0.8"
+ctr = "=0.9"
 pyo3 = { version = "=0.22", features = ["anyhow", "extension-module", "generate-import-lib"] }
-ring = { version = "=0.16" }
+regex = "=1.10"
+ring = "=0.16"
 
 [target.'cfg(any(target_os = "freebsd", target_os = "windows"))'.dependencies]
 mimalloc = { version = "0.1.43", default-features = false, features = ["local_dynamic_tls"] }

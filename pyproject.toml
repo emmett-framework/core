@@ -78,15 +78,19 @@ extend-select = [
     'W',      # pycodestyle
 ]
 extend-ignore = [
+    'B006', # mutable function args are fine
     'B008', # function calls in args defaults are fine
     'B009', # getattr with constants is fine
     'B034', # re.split won't confuse us
     'B904', # rising without from is fine
-    'E501', # leave line length to black
+    'E731', # assigning lambdas is fine
+    'N801', # leave to us class naming
+    'N802', # leave to us method naming
     'N818', # leave to us exceptions naming
     'S101', # assert is fine
+    'S110', # pass on exceptions is fine
 ]
-mccabe = { max-complexity = 13 }
+mccabe = { max-complexity = 24 }
 
 [tool.ruff.lint.isort]
 combine-as-imports = true

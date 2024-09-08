@@ -4,7 +4,7 @@ from enum import Enum
 from .. import _emmett_core
 
 
-class PBKDF2_HMAC(Enum):  # noqa: N801
+class PBKDF2_HMAC(Enum):
     sha1 = _emmett_core.pbkdf2_sha1
     sha256 = _emmett_core.pbkdf2_sha256
     sha384 = _emmett_core.pbkdf2_sha384
