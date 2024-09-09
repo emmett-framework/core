@@ -142,7 +142,18 @@ impl WSRouter {
         match self.routes.whost.get(host) {
             Some(routes_node) => {
                 match WSRouter::match_routes(py, &self.pydict, match_scheme_route_tree!(scheme, routes_node), path) {
-                    None => WSRouter::match_routes(py, &self.pydict, &routes_node.any, path),
+                    None => match WSRouter::match_routes(py, &self.pydict, &routes_node.any, path) {
+                        None => match WSRouter::match_routes(
+                            py,
+                            &self.pydict,
+                            match_scheme_route_tree!(scheme, &self.routes.nhost),
+                            path,
+                        ) {
+                            None => WSRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, path),
+                            v => v,
+                        },
+                        v => v,
+                    },
                     v => v,
                 }
             }

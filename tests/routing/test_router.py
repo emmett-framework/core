@@ -10,8 +10,7 @@ from emmett_core.routing.router import HTTPRouter
 
 def route(router, path, **kwargs):
     def wrap(f):
-        return router(paths=[path], **kwargs)(f)
-
+        return router(paths=path, **kwargs)(f)
     return wrap
 
 
@@ -35,7 +34,6 @@ def http_ctx_builder(current):
         token = current._init_(RequestContext(current.app, req, sdict()))
         yield current
         current._close_(token)
-
     return ctx_builder
 
 
@@ -88,6 +86,53 @@ def cfg_http_router(current, http_router):
 
     @route(http_router, "/test_complex/<int:a>/<float:b>/<date:c>/<alpha:d>/<str:e>/<any:f>")
     def test_route_complex(a, b, c, d, e, f):
+        return "Test Router"
+
+    return http_router
+
+
+@pytest.fixture(scope="function")
+def cfg_http_router_scheme(http_router):
+    @route(http_router, "/test")
+    def test_route():
+        return "Test Router"
+
+    @route(http_router, "/test2/<int:a>/<str:b>", schemes="https")
+    def test_route2(a, b):
+        return "Test Router"
+
+    @route(http_router, "/test3/<int:a>/foo(/<str:b>)?(.<str:c>)?", schemes="http")
+    def test_route3(a, b, c):
+        return "Test Router"
+
+    return http_router
+
+
+@pytest.fixture(scope="function")
+def cfg_http_router_host(http_router):
+    @route(http_router, "/test")
+    def test_route():
+        return "Test Router"
+
+    @route(http_router, "/test2/<int:a>/<str:b>", hostname="test1.tld")
+    def test_route2(a, b):
+        return "Test Router"
+
+    return http_router
+
+
+@pytest.fixture(scope="function")
+def cfg_http_router_scheme_host(http_router):
+    @route(http_router, "/test")
+    def test_route():
+        return "Test Router"
+
+    @route(http_router, "/test2/<int:a>/<str:b>", schemes="https")
+    def test_route2(a, b):
+        return "Test Router"
+
+    @route(http_router, "/test3/<int:a>/foo(/<str:b>)?(.<str:c>)?", hostname="test1.tld")
+    def test_route3(a, b, c):
         return "Test Router"
 
     return http_router
@@ -155,10 +200,103 @@ def test_http_routing_args(cfg_http_router, http_ctx_builder):
         assert args["f"] == "bar/baz"
 
 
-def test_http_routing_with_scheme(): ...
+def test_http_routing_with_scheme(cfg_http_router_scheme, http_ctx_builder):
+    with http_ctx_builder("/test") as ctx:
+        route, _ = cfg_http_router_scheme.match(ctx.request)
+        assert route.name == "test_router.test_route"
+
+    with http_ctx_builder("/test", scheme="https") as ctx:
+        route, _ = cfg_http_router_scheme.match(ctx.request)
+        assert route.name == "test_router.test_route"
+
+    with http_ctx_builder("/test2/1/test") as ctx:
+        route, _ = cfg_http_router_scheme.match(ctx.request)
+        assert not route
+
+    with http_ctx_builder("/test2/1/test", scheme="https") as ctx:
+        route, _ = cfg_http_router_scheme.match(ctx.request)
+        assert route.name == "test_router.test_route2"
+
+    with http_ctx_builder("/test3/1/foo/bar.baz") as ctx:
+        route, _ = cfg_http_router_scheme.match(ctx.request)
+        assert route.name == "test_router.test_route3"
+
+    with http_ctx_builder("/test3/1/foo/bar.baz", scheme="https") as ctx:
+        route, _ = cfg_http_router_scheme.match(ctx.request)
+        assert not route
 
 
-def test_http_routing_with_host(): ...
+def test_http_routing_with_host(cfg_http_router_host, http_ctx_builder):
+    with http_ctx_builder("/test") as ctx:
+        route, _ = cfg_http_router_host.match(ctx.request)
+        assert route.name == "test_router.test_route"
+
+    with http_ctx_builder("/test", host="test1.tld") as ctx:
+        route, _ = cfg_http_router_host.match(ctx.request)
+        assert route.name == "test_router.test_route"
+
+    with http_ctx_builder("/test", host="test2.tld") as ctx:
+        route, _ = cfg_http_router_host.match(ctx.request)
+        assert route.name == "test_router.test_route"
+
+    with http_ctx_builder("/test2/1/test") as ctx:
+        route, _ = cfg_http_router_host.match(ctx.request)
+        assert not route
+
+    with http_ctx_builder("/test2/1/test", host="test1.tld") as ctx:
+        route, _ = cfg_http_router_host.match(ctx.request)
+        assert route.name == "test_router.test_route2"
+
+    with http_ctx_builder("/test2/1/test", host="test2.tld") as ctx:
+        route, _ = cfg_http_router_host.match(ctx.request)
+        assert not route
 
 
-def test_http_routing_with_scheme_and_host(): ...
+def test_http_routing_with_scheme_and_host(cfg_http_router_scheme_host, http_ctx_builder):
+    with http_ctx_builder("/test") as ctx:
+        route, _ = cfg_http_router_scheme_host.match(ctx.request)
+        assert route.name == "test_router.test_route"
+
+    with http_ctx_builder("/test", scheme="https") as ctx:
+        route, _ = cfg_http_router_scheme_host.match(ctx.request)
+        assert route.name == "test_router.test_route"
+
+    with http_ctx_builder("/test", host="test1.tld") as ctx:
+        route, _ = cfg_http_router_scheme_host.match(ctx.request)
+        assert route.name == "test_router.test_route"
+
+    with http_ctx_builder("/test", scheme="https", host="test2.tld") as ctx:
+        route, _ = cfg_http_router_scheme_host.match(ctx.request)
+        assert route.name == "test_router.test_route"
+
+    with http_ctx_builder("/test2/1/test") as ctx:
+        route, _ = cfg_http_router_scheme_host.match(ctx.request)
+        assert not route
+
+    with http_ctx_builder("/test2/1/test", scheme="https") as ctx:
+        route, _ = cfg_http_router_scheme_host.match(ctx.request)
+        assert route.name == "test_router.test_route2"
+
+    with http_ctx_builder("/test2/1/test", scheme="https", host="test1.tld") as ctx:
+        route, _ = cfg_http_router_scheme_host.match(ctx.request)
+        assert route.name == "test_router.test_route2"
+
+    with http_ctx_builder("/test2/1/test", scheme="https", host="test2.tld") as ctx:
+        route, _ = cfg_http_router_scheme_host.match(ctx.request)
+        assert route.name == "test_router.test_route2"
+
+    with http_ctx_builder("/test3/1/foo/bar.baz") as ctx:
+        route, _ = cfg_http_router_scheme_host.match(ctx.request)
+        assert not route
+
+    with http_ctx_builder("/test3/1/foo/bar.baz", host="test1.tld") as ctx:
+        route, _ = cfg_http_router_scheme_host.match(ctx.request)
+        assert route.name == "test_router.test_route3"
+
+    with http_ctx_builder("/test3/1/foo/bar.baz", scheme="https", host="test1.tld") as ctx:
+        route, _ = cfg_http_router_scheme_host.match(ctx.request)
+        assert route.name == "test_router.test_route3"
+
+    with http_ctx_builder("/test3/1/foo/bar.baz", host="test2.tld") as ctx:
+        route, _ = cfg_http_router_scheme_host.match(ctx.request)
+        assert not route

@@ -5,7 +5,7 @@ from collections import namedtuple
 from functools import partial
 from typing import Any, Callable, List, Type
 
-from .._emmett_core import HTTPRouter as _HTTPRouter
+from .._emmett_core import HTTPRouter as _HTTPRouter, WSRouter as _WSRouter
 from ..extensions import Signals
 from ..http.response import HTTPBytesResponse
 from .response import (
@@ -228,7 +228,7 @@ class HTTPRouter(_HTTPRouter):
         return await match.dispatch(reqargs, response)
 
 
-class WebsocketRouter(_HTTPRouter):
+class WebsocketRouter(_WSRouter):
     __slots__ = [
         "__call__",
         "match",

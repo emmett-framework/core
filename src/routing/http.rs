@@ -182,7 +182,19 @@ impl HTTPRouter {
                     method,
                     path,
                 ) {
-                    None => HTTPRouter::match_routes(py, &self.pydict, &routes_node.any, method, path),
+                    None => match HTTPRouter::match_routes(py, &self.pydict, &routes_node.any, method, path) {
+                        None => match HTTPRouter::match_routes(
+                            py,
+                            &self.pydict,
+                            match_scheme_route_tree!(scheme, &self.routes.nhost),
+                            method,
+                            path,
+                        ) {
+                            None => HTTPRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, method, path),
+                            v => v,
+                        },
+                        v => v,
+                    },
                     v => v,
                 }
             }
