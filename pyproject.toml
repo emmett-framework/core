@@ -86,6 +86,7 @@ extend-ignore = [
     'E731', # assigning lambdas is fine
     'N801', # leave to us class naming
     'N802', # leave to us method naming
+    'N806', # leave to us var naming
     'N818', # leave to us exceptions naming
     'S101', # assert is fine
     'S110', # pass on exceptions is fine
