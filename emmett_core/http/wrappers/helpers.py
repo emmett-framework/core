@@ -1,7 +1,7 @@
 import re
 from typing import BinaryIO, Dict, Iterable, Iterator, MutableMapping, Optional, Tuple, Union
 
-from .._io import loop_copyfileobj
+from ..._io import loop_copyfileobj
 
 
 regex_client = re.compile(r"[\w\-:]+(\.[\w\-]+)*\.?")

@@ -5,9 +5,9 @@ from abc import ABCMeta, abstractmethod
 from http.cookies import SimpleCookie
 from typing import Any, List, Mapping, Type, TypeVar, Union
 
-from ..datastructures import Accept, sdict
-from ..lang import LanguageAccept
-from ..utils import cachedprop
+from ...datastructures import sdict
+from ...utils import cachedprop
+from ..headers import Accept, LanguageAccept
 
 
 AcceptType = TypeVar("AcceptType", bound=Accept)

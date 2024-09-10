@@ -11,8 +11,8 @@ from typing import Any, Awaitable, Callable, Optional, Tuple, Union
 from ...ctx import Current, RequestContext, WSContext
 from ...extensions import Signals
 from ...http.response import HTTPFileResponse, HTTPResponse, HTTPStringResponse
+from ...http.wrappers.response import Response
 from ...utils import cachedprop
-from ...wrappers.response import Response
 from .helpers import RequestCancelled
 from .typing import Event, EventHandler, EventLooper, Receive, Scope, Send
 from .wrappers import Request, Websocket

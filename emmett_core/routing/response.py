@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..http.response import HTTPBytesResponse, HTTPResponse, HTTPStringResponse
-from ..wrappers.response import Response
+from ..http.wrappers.response import Response
 from .rules import HTTPRoutingRule
 
 

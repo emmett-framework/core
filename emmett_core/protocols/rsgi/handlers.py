@@ -7,8 +7,8 @@ from typing import Awaitable, Callable, Optional, Tuple
 
 from ...ctx import Current, RequestContext, WSContext
 from ...http.response import HTTPFileResponse, HTTPResponse, HTTPStringResponse
+from ...http.wrappers.response import Response
 from ...utils import cachedprop
-from ...wrappers.response import Response
 from .helpers import WSTransport
 from .wrappers import Request, Websocket
 
