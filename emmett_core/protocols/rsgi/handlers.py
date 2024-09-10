@@ -113,16 +113,6 @@ class HTTPHandler(RequestHandler):
         return HTTPFileResponse(file_path)
 
     def _static_handler(self, scope, protocol, path: str) -> Awaitable[HTTPResponse]:
-        #: handle internal assets
-        if path.startswith("/__emmett__"):
-            file_name = path[12:]
-            if not file_name:
-                return self._http_response(404)
-            static_file = os.path.join(os.path.dirname(__file__), "..", "assets", file_name)
-            if os.path.splitext(static_file)[1] == "html":
-                return self._http_response(404)
-            return self._static_response(static_file)
-        #: handle app assets
         static_file, _ = self.static_matcher(path)
         if static_file:
             return self._static_response(static_file)

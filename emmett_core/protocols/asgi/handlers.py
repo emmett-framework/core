@@ -6,15 +6,11 @@ import re
 import time
 from collections import OrderedDict
 from email.utils import formatdate
-from hashlib import md5
-from importlib import resources
 from typing import Any, Awaitable, Callable, Optional, Tuple, Union
 
 from ...ctx import Current, RequestContext, WSContext
 from ...extensions import Signals
-from ...http.response import HTTPBytesResponse, HTTPFileResponse, HTTPResponse, HTTPStringResponse
-
-# from ..libs.contenttype import contenttype
+from ...http.response import HTTPFileResponse, HTTPResponse, HTTPStringResponse
 from ...utils import cachedprop
 from ...wrappers.response import Response
 from .helpers import RequestCancelled
@@ -128,7 +124,7 @@ class HTTPHandler(RequestHandler):
             self._static_lang_matcher if self.app.language_force_on_url else self._static_nolang_matcher
         )
         self.static_handler = self._static_handler if self.app.config.handle_static else self.dynamic_handler
-        self.pre_handler = self._prefix_handler if self.router._prefix_main else self.static_handler
+        self.pre_handler = self._prefix_handler if self.router._prefix_main else self.dynamic_handler
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
         scope["emt.path"] = scope["path"] or "/"
@@ -192,38 +188,8 @@ class HTTPHandler(RequestHandler):
     async def _static_response(self, file_path: str) -> HTTPFileResponse:
         return HTTPFileResponse(file_path)
 
-    async def _static_content(self, file_name: str, content: bytes) -> HTTPBytesResponse:
-        content_len = str(len(content))
-        return HTTPBytesResponse(
-            200,
-            content,
-            headers={
-                # TODO: "content-type": content_type,
-                "content-length": content_len,
-                "last-modified": self._internal_assets_md[1],
-                "etag": md5(  # noqa: S324
-                    f"{self._internal_assets_md[0]}_{content_len}".encode("utf8")
-                ).hexdigest(),
-            },
-        )
-
     def _static_handler(self, scope: Scope, receive: Receive, send: Send) -> Awaitable[HTTPResponse]:
-        path = scope["emt.path"]
-        #: handle internal assets
-        if path.startswith("/__emmett__"):
-            file_name = path[12:]
-            if not file_name or file_name.endswith(".html"):
-                return self._http_response(404)
-            pkg = None
-            if "/" in file_name:
-                pkg, file_name = file_name.split("/", 1)
-            try:
-                file_contents = resources.read_binary(f"emmett.assets.{pkg}" if pkg else "emmett.assets", file_name)
-            except FileNotFoundError:
-                return self._http_response(404)
-            return self._static_content(file_name, file_contents)
-        #: handle app assets
-        static_file, _ = self.static_matcher(path)
+        static_file, _ = self.static_matcher(scope["emt.path"])
         if static_file:
             return self._static_response(static_file)
         return self.dynamic_handler(scope, receive, send)
