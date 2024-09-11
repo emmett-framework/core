@@ -1,8 +1,12 @@
 try:
     import orjson
-except Exception:
+except ImportError:
     orjson = None
 try:
     import rapidjson
-except Exception:
+except ImportError:
     rapidjson = None
+try:
+    import granian
+except ImportError:
+    granian = None
