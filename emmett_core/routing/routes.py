@@ -1,10 +1,12 @@
 import re
 
+from .cache import (
+    CacheCloseDispatcher,
+    CacheDispatcher,
+    CacheFlowDispatcher,
+    CacheOpenDispatcher,
+)
 from .dispatchers import (
-    # CacheCloseDispatcher,
-    # CacheDispatcher,
-    # CacheFlowDispatcher,
-    # CacheOpenDispatcher,
     Dispatcher,
     RequestCloseDispatcher,
     RequestDispatcher,
@@ -78,9 +80,6 @@ class Route:
         path = REGEX_FLOAT.sub(r"(?P<\g<1>>\\d+\.\\d+)", path)
         return f"^{path}$"
 
-    def build_dispatcher(self, rule):
-        raise NotImplementedError
-
 
 class HTTPRoute(Route):
     __slots__ = ["methods", "dispatchers"]
@@ -88,20 +87,11 @@ class HTTPRoute(Route):
     def __init__(self, rule, path, idx):
         super().__init__(rule, path, idx)
         self.methods = tuple(method.upper() for method in rule.methods)
-        self.build_dispatchers(rule)
-
-    def build_dispatchers(self, rule):
-        # dispatchers = {
-        #     "base": (RequestDispatcher, CacheDispatcher),
-        #     "open": (RequestOpenDispatcher, CacheOpenDispatcher),
-        #     "close": (RequestCloseDispatcher, CacheCloseDispatcher),
-        #     "flow": (RequestFlowDispatcher, CacheFlowDispatcher),
-        # }
         dispatchers = {
-            "base": (RequestDispatcher, RequestDispatcher),
-            "open": (RequestOpenDispatcher, RequestOpenDispatcher),
-            "close": (RequestCloseDispatcher, RequestCloseDispatcher),
-            "flow": (RequestFlowDispatcher, RequestFlowDispatcher),
+            "base": (RequestDispatcher, CacheDispatcher),
+            "open": (RequestOpenDispatcher, CacheOpenDispatcher),
+            "close": (RequestCloseDispatcher, CacheCloseDispatcher),
+            "flow": (RequestFlowDispatcher, CacheFlowDispatcher),
         }
         if self.pipeline_flow_open and self.pipeline_flow_close:
             dispatcher, cdispatcher = dispatchers["flow"]
@@ -113,8 +103,7 @@ class HTTPRoute(Route):
             dispatcher, cdispatcher = dispatchers["base"]
         self.dispatchers = {}
         for method in self.methods:
-            # dispatcher_cls = cdispatcher if rule.cache_rule and method in ["HEAD", "GET"] else dispatcher
-            dispatcher_cls = dispatcher
+            dispatcher_cls = cdispatcher if rule.cache_rule and method in ["HEAD", "GET"] else dispatcher
             self.dispatchers[method] = dispatcher_cls(
                 self, rule, rule.head_builder if method == "HEAD" else rule.response_builder
             )
@@ -127,9 +116,6 @@ class WebsocketRoute(Route):
         super().__init__(rule, path, idx)
         self.pipeline_flow_receive = rule.pipeline_flow_receive
         self.pipeline_flow_send = rule.pipeline_flow_send
-        self.build_dispatcher(rule)
-
-    def build_dispatcher(self, rule):
         dispatchers = {
             "base": Dispatcher,
             "open": WSOpenDispatcher,

@@ -9,6 +9,7 @@ from ._internal import create_missing_app_folders, get_root_path, warn_of_deprec
 from .datastructures import gsdict, sdict
 from .extensions import Extension, ExtensionType, Signals
 from .pipeline import Pipe
+from .routing.cache import RouteCacheRule
 from .routing.router import HTTPRouter, RoutingCtx, RoutingCtxGroup, WebsocketRouter
 from .typing import ErrorHandlerType
 from .utils import cachedprop
@@ -57,10 +58,9 @@ class AppModule:
         static_path: Optional[str],
         url_prefix: Optional[str],
         hostname: Optional[str],
-        # cache: Optional[RouteCacheRule],
+        cache: Optional[RouteCacheRule],
         root_path: Optional[str],
         pipeline: List[Pipe],
-        # injectors: List[Injector],
         opts: Dict[str, Any] = {},
     ):
         return cls(
@@ -71,7 +71,7 @@ class AppModule:
             static_path=static_path,
             url_prefix=url_prefix,
             hostname=hostname,
-            # cache=cache,
+            cache=cache,
             root_path=root_path,
             pipeline=pipeline,
             **opts,
@@ -87,7 +87,7 @@ class AppModule:
         static_path: Optional[str],
         url_prefix: Optional[str],
         hostname: Optional[str],
-        # cache: Optional[RouteCacheRule],
+        cache: Optional[RouteCacheRule],
         root_path: Optional[str],
         opts: Dict[str, Any] = {},
     ):
@@ -98,7 +98,7 @@ class AppModule:
             url_prefix = "/" + url_prefix
         module_url_prefix = (appmod.url_prefix + (url_prefix or "")) if appmod.url_prefix else url_prefix
         hostname = hostname or appmod.hostname
-        # cache = cache or appmod.cache
+        cache = cache or appmod.cache
         return cls(
             appmod.app,
             name,
@@ -107,7 +107,7 @@ class AppModule:
             static_path=static_path,
             url_prefix=module_url_prefix,
             hostname=hostname,
-            # cache=cache,
+            cache=cache,
             root_path=root_path,
             pipeline=appmod.pipeline,
             **opts,
@@ -123,7 +123,7 @@ class AppModule:
         static_path: Optional[str],
         url_prefix: Optional[str],
         hostname: Optional[str],
-        # cache: Optional[RouteCacheRule],
+        cache: Optional[RouteCacheRule],
         root_path: Optional[str],
         opts: Dict[str, Any] = {},
     ) -> AppModulesGrouped:
@@ -137,7 +137,7 @@ class AppModule:
                 static_path=static_path,
                 url_prefix=url_prefix,
                 hostname=hostname,
-                # cache=cache,
+                cache=cache,
                 root_path=root_path,
                 opts=opts,
             )
@@ -152,7 +152,7 @@ class AppModule:
         static_path: Optional[str] = None,
         url_prefix: Optional[str] = None,
         hostname: Optional[str] = None,
-        # cache: Optional[RouteCacheRule] = None,
+        cache: Optional[RouteCacheRule] = None,
         root_path: Optional[str] = None,
         module_class: Optional[Type[AppModule]] = None,
         **kwargs: Any,
@@ -166,7 +166,7 @@ class AppModule:
             static_path=static_path,
             url_prefix=url_prefix,
             hostname=hostname,
-            # cache=cache,
+            cache=cache,
             root_path=root_path,
             opts=kwargs,
         )
@@ -180,7 +180,7 @@ class AppModule:
         static_path: Optional[str] = None,
         url_prefix: Optional[str] = None,
         hostname: Optional[str] = None,
-        # cache: Optional[RouteCacheRule] = None,
+        cache: Optional[RouteCacheRule] = None,
         root_path: Optional[str] = None,
         pipeline: Optional[List[Pipe]] = None,
         **kwargs: Any,
@@ -200,7 +200,7 @@ class AppModule:
         )
         self.url_prefix = url_prefix
         self.hostname = hostname
-        # self.cache = cache
+        self.cache = cache
         self._super_pipeline = pipeline or []
         self.pipeline = []
         self.app._register_module(self)
@@ -376,7 +376,7 @@ class App:
         hostname: Optional[str] = None,
         methods: Optional[Union[str, List[str]]] = None,
         prefix: Optional[str] = None,
-        # cache: Optional[RouteCacheRule] = None,
+        cache: Optional[RouteCacheRule] = None,
         output: str = "auto",
     ) -> RoutingCtx:
         if callable(paths):
@@ -390,7 +390,7 @@ class App:
             hostname=hostname,
             methods=methods,
             prefix=prefix,
-            # cache=cache,
+            cache=cache,
             output=output,
         )
 
@@ -491,7 +491,7 @@ class App:
         static_path: Optional[str] = None,
         url_prefix: Optional[str] = None,
         hostname: Optional[str] = None,
-        # cache: Optional[RouteCacheRule] = None,
+        cache: Optional[RouteCacheRule] = None,
         root_path: Optional[str] = None,
         pipeline: Optional[List[Pipe]] = None,
         module_class: Optional[Type[AppModule]] = None,
@@ -506,7 +506,7 @@ class App:
             static_path=static_path,
             url_prefix=url_prefix,
             hostname=hostname,
-            # cache=cache,
+            cache=cache,
             root_path=root_path,
             pipeline=pipeline or [],
             opts=kwargs,
@@ -528,7 +528,7 @@ class AppModuleGroup:
         static_path: Optional[str] = None,
         url_prefix: Optional[str] = None,
         hostname: Optional[str] = None,
-        # cache: Optional[RouteCacheRule] = None,
+        cache: Optional[RouteCacheRule] = None,
         root_path: Optional[str] = None,
         module_class: Optional[Type[AppModule]] = None,
         **kwargs: Any,
@@ -542,7 +542,7 @@ class AppModuleGroup:
             static_path=static_path,
             url_prefix=url_prefix,
             hostname=hostname,
-            # cache=cache,
+            cache=cache,
             root_path=root_path,
             opts=kwargs,
         )

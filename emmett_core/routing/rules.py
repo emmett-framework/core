@@ -3,7 +3,9 @@ from __future__ import annotations
 import os
 from typing import Any, Callable
 
+from ..ctx import Current
 from ..pipeline import Pipe, RequestPipeline, WebsocketPipeline
+from .cache import RouteCacheRule
 from .routes import HTTPRoute, WebsocketRoute
 
 
@@ -38,7 +40,7 @@ class RoutingRule:
 
 class HTTPRoutingRule(RoutingRule):
     __slots__ = [
-        # "cache_rule",
+        "cache_rule",
         "f",
         "head_builder",
         "hostname",
@@ -52,26 +54,21 @@ class HTTPRoutingRule(RoutingRule):
         "prefix",
         "response_builder",
         "schemes",
-        # "template_folder",
-        # "template_path",
-        # "template",
     ]
+    current: Current
 
     def __init__(
         self,
         router,
         paths=None,
         name=None,
-        # template=None,
         pipeline=None,
         injectors=None,
         schemes=None,
         hostname=None,
         methods=None,
         prefix=None,
-        # template_folder=None,
-        # template_path=None,
-        # cache=None,
+        cache=None,
         output="auto",
     ):
         super().__init__(router)
@@ -97,16 +94,13 @@ class HTTPRoutingRule(RoutingRule):
         if output not in self.router._outputs:
             raise SyntaxError(f"Invalid output specified. Allowed values are: {', '.join(self.router._outputs.keys())}")
         self.output_type = output
-        # self.template = template
-        # self.template_folder = template_folder
-        # self.template_path = template_path or self.app.template_path
         self.pipeline = self.router.pipeline + (pipeline or []) + self.router.injectors + (injectors or [])
-        # self.cache_rule = None
-        # if cache:
-        #     if not isinstance(cache, RouteCacheRule):
-        #         raise RuntimeError("route cache argument should be a valid caching rule")
-        #     if any(key in self.methods for key in ["get", "head"]):
-        #         self.cache_rule = cache
+        self.cache_rule = None
+        if cache:
+            if not isinstance(cache, RouteCacheRule):
+                raise RuntimeError("route cache argument should be a valid caching rule")
+            if any(key in self.methods for key in ["get", "head"]):
+                self.cache_rule = cache
         # check pipes are indeed valid pipes
         if any(not isinstance(pipe, Pipe) for pipe in self.pipeline):
             raise RuntimeError("Invalid pipeline")
@@ -120,14 +114,8 @@ class HTTPRoutingRule(RoutingRule):
             self.paths.append("/" + f.__name__)
         if not self.name:
             self.name = self.build_name(f)
-        # is it good?
         if self.name.endswith("."):
             self.name = self.name + f.__name__
-        #
-        # if not self.template:
-        #     self.template = f.__name__ + self.app.template_default_extension
-        # if self.template_folder:
-        #     self.template = os.path.join(self.template_folder, self.template)
         pipeline_obj = RequestPipeline(self.pipeline)
         wrapped_f = pipeline_obj(f)
         self.pipeline_flow_open = pipeline_obj._flow_open()
@@ -181,10 +169,8 @@ class WebsocketRoutingRule(RoutingRule):
             self.paths.append("/" + f.__name__)
         if not self.name:
             self.name = self.build_name(f)
-        # is it good?
         if self.name.endswith("."):
             self.name = self.name + f.__name__
-        #
         pipeline_obj = WebsocketPipeline(self.pipeline)
         wrapped_f = pipeline_obj(f)
         self.pipeline_flow_open = pipeline_obj._flow_open()
