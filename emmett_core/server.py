@@ -1,5 +1,3 @@
-from typing import Optional
-
 from ._imports import granian
 
 
@@ -19,8 +17,9 @@ def run(
     backpressure=None,
     http="auto",
     enable_websockets=True,
-    ssl_certfile: Optional[str] = None,
-    ssl_keyfile: Optional[str] = None,
+    ssl_certfile=None,
+    ssl_keyfile=None,
+    reload=False,
 ):
     if granian is None:
         raise RuntimeError("granian dependency not installed")
@@ -44,5 +43,6 @@ def run(
         log_access=log_access,
         ssl_cert=ssl_certfile,
         ssl_key=ssl_keyfile,
+        reload=reload,
     )
     server.serve()
