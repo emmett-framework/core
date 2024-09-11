@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import errno
+import mimetypes
 import os
 import stat
 from email.utils import formatdate
@@ -8,9 +9,6 @@ from hashlib import md5
 from typing import Any, AsyncIterable, BinaryIO, Dict, Generator, Iterable, Tuple
 
 from .._io import loop_open_file
-
-
-# from .libs.contenttype import contenttype
 
 
 class HTTPResponse(Exception):
@@ -108,12 +106,13 @@ class HTTPFileResponse(HTTPResponse):
         self.chunk_size = chunk_size
 
     def _get_stat_headers(self, stat_data):
+        content_type = mimetypes.guess_type(self.file_path)[0] or "text/plain"
         content_length = str(stat_data.st_size)
         last_modified = formatdate(stat_data.st_mtime, usegmt=True)
         etag_base = str(stat_data.st_mtime) + "_" + str(stat_data.st_size)
         etag = md5(etag_base.encode("utf-8")).hexdigest()  # noqa: S324
         return {
-            # TODO: "content-type": contenttype(self.file_path),
+            "content-type": content_type,
             "content-length": content_length,
             "last-modified": last_modified,
             "etag": etag,
