@@ -204,7 +204,7 @@ class HTTPHandler(RequestHandler):
         )
         response = Response()
         ctx = RequestContext(self.app, request, response)
-        ctx_token = self.current._init_(ctx)
+        ctx_token = self.__class__.current._init_(ctx)
         try:
             http = await self.router.dispatch(request, response)
         except HTTPResponse as http_exception:
@@ -221,11 +221,11 @@ class HTTPHandler(RequestHandler):
             self.app.log.exception("Application exception:")
             http = HTTPStringResponse(500, await self.error_handler(), headers=response.headers)
         finally:
-            self.current._close_(ctx_token)
+            self.__class__.current._close_(ctx_token)
         return http
 
     async def _exception_handler(self) -> str:
-        self.current.response.headers._data["content-type"] = "text/plain"
+        self.__class__.current.response.headers._data["content-type"] = "text/plain"
         return "Internal error"
 
 
@@ -284,14 +284,14 @@ class WSHandler(RequestHandler):
 
     async def dynamic_handler(self, scope: Scope, send: Send):
         ctx = WSContext(self.app, Websocket(scope, scope["emt.input"].get, send))
-        ctx_token = self.current._init_(ctx)
+        ctx_token = self.__class__.current._init_(ctx)
         try:
             await self.router.dispatch(ctx.websocket)
         finally:
             if not scope.get("emt._flow_cancel", False) and ctx.websocket._accepted:
                 await send({"type": "websocket.close", "code": 1000})
                 scope["emt._ws_closed"] = True
-            self.current._close_(ctx_token)
+            self.__class__.current._close_(ctx_token)
 
 
 async def _event_looper(

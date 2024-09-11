@@ -128,7 +128,7 @@ class HTTPHandler(RequestHandler):
         )
         response = Response()
         ctx = RequestContext(self.app, request, response)
-        ctx_token = self.current._init_(ctx)
+        ctx_token = self.__class__.current._init_(ctx)
         try:
             http = await self.router.dispatch(request, response)
         except HTTPResponse as http_exception:
@@ -143,11 +143,11 @@ class HTTPHandler(RequestHandler):
             self.app.log.exception("Application exception:")
             http = HTTPStringResponse(500, await self.error_handler(), headers=response.headers)
         finally:
-            self.current._close_(ctx_token)
+            self.__class__.current._close_(ctx_token)
         return http
 
     async def _exception_handler(self) -> str:
-        self.current.response.headers._data["content-type"] = "text/plain"
+        self.__class__.current.response.headers._data["content-type"] = "text/plain"
         return "Internal error"
 
 
@@ -198,7 +198,7 @@ class WSHandler(RequestHandler):
 
     async def dynamic_handler(self, scope, transport: WSTransport, path: str):
         ctx = WSContext(self.app, Websocket(scope, path, transport))
-        ctx_token = self.current._init_(ctx)
+        ctx_token = self.__class__.current._init_(ctx)
         try:
             await self.router.dispatch(ctx.websocket)
         except HTTPResponse as http:
@@ -210,7 +210,7 @@ class WSHandler(RequestHandler):
             transport.status = 500
             self.app.log.exception("Application exception:")
         finally:
-            self.current._close_(ctx_token)
+            self.__class__.current._close_(ctx_token)
 
     def _close_connection(self, transport: WSTransport):
         transport.protocol.close(transport.status)

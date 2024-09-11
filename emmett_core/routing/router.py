@@ -120,6 +120,10 @@ class RouterMixin:
 
         return inner
 
+    @classmethod
+    def exposing(cls):
+        return cls._routing_stack[-1]
+
 
 class HTTPRouter(_HTTPRouter):
     __slots__ = [
@@ -156,10 +160,6 @@ class HTTPRouter(_HTTPRouter):
         self._mixin_cls._init_router_(self, *args, **kwargs)
         self.pipeline = []
         self.injectors = []
-
-    @classmethod
-    def exposing(cls):
-        return cls._mixin_cls._routing_stack[-1]
 
     def add_route_str(self, route):
         self._routes_str[route.name] = "%s %s://%s%s%s -> %s" % (
@@ -253,10 +253,6 @@ class WebsocketRouter(_WSRouter):
     def __init__(self, *args, **kwargs):
         self._mixin_cls._init_router_(self, *args, **kwargs)
         self.pipeline = []
-
-    @classmethod
-    def exposing(cls):
-        return cls._mixin_cls._routing_stack[-1]
 
     def add_route_str(self, route):
         self._routes_str[route.name] = "%s://%s%s%s -> %s" % (
