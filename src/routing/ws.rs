@@ -1,6 +1,6 @@
 use anyhow::Result;
 use pyo3::{prelude::*, types::PyDict};
-use std::{collections::HashMap, convert::identity};
+use std::collections::HashMap;
 
 use super::{get_route_tree, match_re_routes, match_scheme_route_tree, ReGroupType, RouteMap, RouteMapMatch};
 
@@ -31,10 +31,10 @@ impl WSRouter {
         routes: &'p RouteMap,
         path: &str,
     ) -> Option<(PyObject, PyObject)> {
-        match routes.r#static.get(path) {
-            Some(route) => Some((route.clone_ref(py), pydict.clone_ref(py))),
-            None => match_re_routes!(py, routes, path),
-        }
+        routes.r#static.get(path).map_or_else(
+            || match_re_routes!(py, routes, path),
+            |route| Some((route.clone_ref(py), pydict.clone_ref(py))),
+        )
     }
 }
 
@@ -108,67 +108,70 @@ impl WSRouter {
     #[pyo3(signature = (path))]
     fn match_route_direct(&self, py: Python, path: &str) -> (PyObject, PyObject) {
         WSRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, path)
-            .map_or_else(|| (self.pynone.clone_ref(py), self.pydict.clone_ref(py)), identity)
+            .or_else(|| Some((self.pynone.clone_ref(py), self.pydict.clone_ref(py))))
+            .unwrap()
     }
 
     #[pyo3(signature = (scheme, path))]
     fn match_route_scheme(&self, py: Python, scheme: &str, path: &str) -> (PyObject, PyObject) {
-        match WSRouter::match_routes(
+        WSRouter::match_routes(
             py,
             &self.pydict,
             match_scheme_route_tree!(scheme, self.routes.nhost),
             path,
-        ) {
-            None => WSRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, path),
-            v => v,
-        }
-        .map_or_else(|| (self.pynone.clone_ref(py), self.pydict.clone_ref(py)), identity)
+        )
+        .or_else(|| WSRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, path))
+        .or_else(|| Some((self.pynone.clone_ref(py), self.pydict.clone_ref(py))))
+        .unwrap()
     }
 
     #[pyo3(signature = (host, path))]
     fn match_route_host(&self, py: Python, host: &str, path: &str) -> (PyObject, PyObject) {
-        match self.routes.whost.get(host) {
-            Some(routes_node) => match WSRouter::match_routes(py, &self.pydict, &routes_node.any, path) {
-                None => WSRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, path),
-                v => v,
-            },
-            None => WSRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, path),
-        }
-        .map_or_else(|| (self.pynone.clone_ref(py), self.pydict.clone_ref(py)), identity)
+        self.routes
+            .whost
+            .get(host)
+            .map_or_else(
+                || WSRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, path),
+                |routes_node| {
+                    WSRouter::match_routes(py, &self.pydict, &routes_node.any, path)
+                        .or_else(|| WSRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, path))
+                },
+            )
+            .or_else(|| Some((self.pynone.clone_ref(py), self.pydict.clone_ref(py))))
+            .unwrap()
     }
 
     #[pyo3(signature = (host, scheme, path))]
     fn match_route_all(&self, py: Python, host: &str, scheme: &str, path: &str) -> (PyObject, PyObject) {
-        match self.routes.whost.get(host) {
-            Some(routes_node) => {
-                match WSRouter::match_routes(py, &self.pydict, match_scheme_route_tree!(scheme, routes_node), path) {
-                    None => match WSRouter::match_routes(py, &self.pydict, &routes_node.any, path) {
-                        None => match WSRouter::match_routes(
-                            py,
-                            &self.pydict,
-                            match_scheme_route_tree!(scheme, &self.routes.nhost),
-                            path,
-                        ) {
-                            None => WSRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, path),
-                            v => v,
-                        },
-                        v => v,
-                    },
-                    v => v,
-                }
-            }
-            None => {
-                match WSRouter::match_routes(
-                    py,
-                    &self.pydict,
-                    match_scheme_route_tree!(scheme, self.routes.nhost),
-                    path,
-                ) {
-                    None => WSRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, path),
-                    v => v,
-                }
-            }
-        }
-        .map_or_else(|| (self.pynone.clone_ref(py), self.pydict.clone_ref(py)), identity)
+        self.routes
+            .whost
+            .get(host)
+            .map_or_else(
+                || {
+                    WSRouter::match_routes(
+                        py,
+                        &self.pydict,
+                        match_scheme_route_tree!(scheme, self.routes.nhost),
+                        path,
+                    )
+                    .or_else(|| WSRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, path))
+                },
+                |routes_node| {
+                    WSRouter::match_routes(py, &self.pydict, match_scheme_route_tree!(scheme, routes_node), path)
+                        .or_else(|| {
+                            WSRouter::match_routes(py, &self.pydict, &routes_node.any, path).or_else(|| {
+                                WSRouter::match_routes(
+                                    py,
+                                    &self.pydict,
+                                    match_scheme_route_tree!(scheme, &self.routes.nhost),
+                                    path,
+                                )
+                                .or_else(|| WSRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, path))
+                            })
+                        })
+                },
+            )
+            .or_else(|| Some((self.pynone.clone_ref(py), self.pydict.clone_ref(py))))
+            .unwrap()
     }
 }

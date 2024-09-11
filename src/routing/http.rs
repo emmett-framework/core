@@ -1,6 +1,6 @@
 use anyhow::Result;
 use pyo3::{prelude::*, types::PyDict};
-use std::{collections::HashMap, convert::identity};
+use std::collections::HashMap;
 
 use super::{get_route_tree, match_re_routes, match_scheme_route_tree, ReGroupType, RouteMap, RouteMapMatch};
 
@@ -53,13 +53,12 @@ impl HTTPRouter {
         method: &str,
         path: &str,
     ) -> Option<(PyObject, PyObject)> {
-        if let Some(routes) = routes_node.get(method) {
-            match routes.r#static.get(path) {
-                Some(route) => return Some((route.clone_ref(py), pydict.clone_ref(py))),
-                None => return match_re_routes!(py, routes, path),
-            }
-        }
-        None
+        routes_node.get(method).and_then(|routes| {
+            routes.r#static.get(path).map_or_else(
+                || match_re_routes!(py, routes, path),
+                |route| Some((route.clone_ref(py), pydict.clone_ref(py))),
+            )
+        })
     }
 }
 
@@ -141,76 +140,81 @@ impl HTTPRouter {
     #[pyo3(signature = (method, path))]
     fn match_route_direct(&self, py: Python, method: &str, path: &str) -> (PyObject, PyObject) {
         HTTPRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, method, path)
-            .map_or_else(|| (self.pynone.clone_ref(py), self.pydict.clone_ref(py)), identity)
+            .or_else(|| Some((self.pynone.clone_ref(py), self.pydict.clone_ref(py))))
+            .unwrap()
     }
 
     #[pyo3(signature = (scheme, method, path))]
     fn match_route_scheme(&self, py: Python, scheme: &str, method: &str, path: &str) -> (PyObject, PyObject) {
-        match HTTPRouter::match_routes(
+        HTTPRouter::match_routes(
             py,
             &self.pydict,
             match_scheme_route_tree!(scheme, self.routes.nhost),
             method,
             path,
-        ) {
-            None => HTTPRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, method, path),
-            v => v,
-        }
-        .map_or_else(|| (self.pynone.clone_ref(py), self.pydict.clone_ref(py)), identity)
+        )
+        .or_else(|| HTTPRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, method, path))
+        .or_else(|| Some((self.pynone.clone_ref(py), self.pydict.clone_ref(py))))
+        .unwrap()
     }
 
     #[pyo3(signature = (host, method, path))]
     fn match_route_host(&self, py: Python, host: &str, method: &str, path: &str) -> (PyObject, PyObject) {
-        match self.routes.whost.get(host) {
-            Some(routes_node) => match HTTPRouter::match_routes(py, &self.pydict, &routes_node.any, method, path) {
-                None => HTTPRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, method, path),
-                v => v,
-            },
-            None => HTTPRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, method, path),
-        }
-        .map_or_else(|| (self.pynone.clone_ref(py), self.pydict.clone_ref(py)), identity)
+        self.routes
+            .whost
+            .get(host)
+            .map_or_else(
+                || HTTPRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, method, path),
+                |routes_node| {
+                    HTTPRouter::match_routes(py, &self.pydict, &routes_node.any, method, path)
+                        .or_else(|| HTTPRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, method, path))
+                },
+            )
+            .or_else(|| Some((self.pynone.clone_ref(py), self.pydict.clone_ref(py))))
+            .unwrap()
     }
 
     #[pyo3(signature = (host, scheme, method, path))]
     fn match_route_all(&self, py: Python, host: &str, scheme: &str, method: &str, path: &str) -> (PyObject, PyObject) {
-        match self.routes.whost.get(host) {
-            Some(routes_node) => {
-                match HTTPRouter::match_routes(
-                    py,
-                    &self.pydict,
-                    match_scheme_route_tree!(scheme, routes_node),
-                    method,
-                    path,
-                ) {
-                    None => match HTTPRouter::match_routes(py, &self.pydict, &routes_node.any, method, path) {
-                        None => match HTTPRouter::match_routes(
-                            py,
-                            &self.pydict,
-                            match_scheme_route_tree!(scheme, &self.routes.nhost),
-                            method,
-                            path,
-                        ) {
-                            None => HTTPRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, method, path),
-                            v => v,
-                        },
-                        v => v,
-                    },
-                    v => v,
-                }
-            }
-            None => {
-                match HTTPRouter::match_routes(
-                    py,
-                    &self.pydict,
-                    match_scheme_route_tree!(scheme, self.routes.nhost),
-                    method,
-                    path,
-                ) {
-                    None => HTTPRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, method, path),
-                    v => v,
-                }
-            }
-        }
-        .map_or_else(|| (self.pynone.clone_ref(py), self.pydict.clone_ref(py)), identity)
+        self.routes
+            .whost
+            .get(host)
+            .map_or_else(
+                || {
+                    HTTPRouter::match_routes(
+                        py,
+                        &self.pydict,
+                        match_scheme_route_tree!(scheme, self.routes.nhost),
+                        method,
+                        path,
+                    )
+                    .or_else(|| HTTPRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, method, path))
+                },
+                |routes_node| {
+                    HTTPRouter::match_routes(
+                        py,
+                        &self.pydict,
+                        match_scheme_route_tree!(scheme, routes_node),
+                        method,
+                        path,
+                    )
+                    .or_else(|| {
+                        HTTPRouter::match_routes(py, &self.pydict, &routes_node.any, method, path).or_else(|| {
+                            HTTPRouter::match_routes(
+                                py,
+                                &self.pydict,
+                                match_scheme_route_tree!(scheme, &self.routes.nhost),
+                                method,
+                                path,
+                            )
+                            .or_else(|| {
+                                HTTPRouter::match_routes(py, &self.pydict, &self.routes.nhost.any, method, path)
+                            })
+                        })
+                    })
+                },
+            )
+            .or_else(|| Some((self.pynone.clone_ref(py), self.pydict.clone_ref(py))))
+            .unwrap()
     }
 }

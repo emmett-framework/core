@@ -59,7 +59,7 @@ macro_rules! match_scheme_route_tree {
 
 macro_rules! match_re_routes {
     ($py:expr, $routes:expr, $path:expr) => {{
-        if let Some((route, gnames, mgroups)) = $py.allow_threads(|| {
+        $py.allow_threads(|| {
             for (rpath, groupnames, robj) in &$routes.r#match {
                 if rpath.is_match($path) {
                     let groups = rpath.captures($path).unwrap();
@@ -67,29 +67,29 @@ macro_rules! match_re_routes {
                 }
             }
             None
-        }) {
+        })
+        .and_then(|(route, gnames, mgroups)| {
             let pydict = PyDict::new_bound($py);
             for (gname, gtype) in gnames {
-                let gsval = mgroups.name(gname).map(|v| v.as_str());
-                let gval = if let Some(v) = gsval {
-                    let pval: Result<PyObject> = match gtype {
-                        ReGroupType::Int => super::parse::parse_int_arg($py, v),
-                        ReGroupType::Float => super::parse::parse_float_arg($py, v),
-                        ReGroupType::Date => super::parse::parse_date_arg($py, v),
-                        _ => Ok(v.into_py($py)),
-                    };
-                    if pval.is_err() {
-                        return None;
-                    }
-                    pval.unwrap()
-                } else {
-                    gsval.into_py($py)
-                };
-                let _ = pydict.set_item(&gname[..], gval);
+                let gval = mgroups.name(gname).map_or_else(
+                    || Ok($py.None()),
+                    |v| {
+                        let vstr = v.as_str();
+                        match gtype {
+                            ReGroupType::Int => super::parse::parse_int_arg($py, vstr),
+                            ReGroupType::Float => super::parse::parse_float_arg($py, vstr),
+                            ReGroupType::Date => super::parse::parse_date_arg($py, vstr),
+                            _ => Ok(vstr.into_py($py)),
+                        }
+                    },
+                );
+                if gval.is_err() {
+                    return None;
+                }
+                let _ = pydict.set_item(&gname[..], gval.unwrap());
             }
             return Some((route.clone_ref($py), pydict.into_py($py)));
-        }
-        None
+        })
     }};
 }
 
