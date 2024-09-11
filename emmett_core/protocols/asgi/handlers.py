@@ -8,7 +8,7 @@ from collections import OrderedDict
 from email.utils import formatdate
 from typing import Any, Awaitable, Callable, Optional, Tuple, Union
 
-from ...ctx import Current, RequestContext, WSContext
+from ...ctx import RequestContext, WSContext
 from ...extensions import Signals
 from ...http.response import HTTPFileResponse, HTTPResponse, HTTPStringResponse
 from ...http.wrappers.response import Response
@@ -57,11 +57,11 @@ class MetaHandler(type):
 
 
 class Handler(metaclass=MetaHandler):
-    __slots__ = ["app"]
-    current: Current
+    __slots__ = ["app", "current"]
 
-    def __init__(self, app):
+    def __init__(self, app, current):
         self.app = app
+        self.current = current
 
     @classmethod
     def on_event(cls, event: str) -> Callable[[EventHandler], EventHandlerWrapper]:
@@ -204,7 +204,7 @@ class HTTPHandler(RequestHandler):
         )
         response = Response()
         ctx = RequestContext(self.app, request, response)
-        ctx_token = self.__class__.current._init_(ctx)
+        ctx_token = self.current._init_(ctx)
         try:
             http = await self.router.dispatch(request, response)
         except HTTPResponse as http_exception:
@@ -221,11 +221,11 @@ class HTTPHandler(RequestHandler):
             self.app.log.exception("Application exception:")
             http = HTTPStringResponse(500, await self.error_handler(), headers=response.headers)
         finally:
-            self.__class__.current._close_(ctx_token)
+            self.current._close_(ctx_token)
         return http
 
     async def _exception_handler(self) -> str:
-        self.__class__.current.response.headers._data["content-type"] = "text/plain"
+        self.current.response.headers._data["content-type"] = "text/plain"
         return "Internal error"
 
 
@@ -284,14 +284,14 @@ class WSHandler(RequestHandler):
 
     async def dynamic_handler(self, scope: Scope, send: Send):
         ctx = WSContext(self.app, Websocket(scope, scope["emt.input"].get, send))
-        ctx_token = self.__class__.current._init_(ctx)
+        ctx_token = self.current._init_(ctx)
         try:
             await self.router.dispatch(ctx.websocket)
         finally:
             if not scope.get("emt._flow_cancel", False) and ctx.websocket._accepted:
                 await send({"type": "websocket.close", "code": 1000})
                 scope["emt._ws_closed"] = True
-            self.__class__.current._close_(ctx_token)
+            self.current._close_(ctx_token)
 
 
 async def _event_looper(

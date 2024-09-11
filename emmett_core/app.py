@@ -9,8 +9,6 @@ from ._internal import create_missing_app_folders, get_root_path, warn_of_deprec
 from .datastructures import gsdict, sdict
 from .extensions import Extension, ExtensionType, Signals
 from .pipeline import Pipe
-from .protocols.asgi import handlers as _asgi_handlers
-from .protocols.rsgi import handlers as _rsgi_handlers
 from .routing.router import HTTPRouter, RoutingCtx, RoutingCtxGroup, WebsocketRouter
 from .typing import ErrorHandlerType
 from .utils import cachedprop
@@ -266,6 +264,7 @@ class App:
     debug = None
     config_class = Config
     modules_class = AppModule
+    routers_class = (HTTPRouter, WebsocketRouter)
     test_client_class = None
 
     def __init__(self, import_name: str, root_path: Optional[str] = None, url_prefix: Optional[str] = None, **opts):
@@ -283,14 +282,11 @@ class App:
         self._language_force_on_url = False
         #: init routing
         self._pipeline: List[Pipe] = []
-        self._router_http = HTTPRouter(self, url_prefix=url_prefix)
-        self._router_ws = WebsocketRouter(self, url_prefix=url_prefix)
-        self._asgi_handlers = {
-            "http": _asgi_handlers.HTTPHandler(self),
-            "lifespan": _asgi_handlers.LifeSpanHandler(self),
-            "websocket": _asgi_handlers.WSHandler(self),
-        }
-        self._rsgi_handlers = {"http": _rsgi_handlers.HTTPHandler(self), "ws": _rsgi_handlers.WSHandler(self)}
+        router_http_cls, router_ws_cls = self.__class__.routers_class
+        self._router_http = router_http_cls(self, url_prefix=url_prefix)
+        self._router_ws = router_ws_cls(self, url_prefix=url_prefix)
+        self._asgi_handlers = {}
+        self._rsgi_handlers = {}
         self.error_handlers: Dict[int, Callable[[], Awaitable[str]]] = {}
         #: init logger
         self._logger = None
@@ -309,6 +305,9 @@ class App:
         self.root_path = root_path
         self.static_path = os.path.join(self.root_path, "static")
         create_missing_app_folders(self)
+
+    def _init_handlers(self):
+        raise NotImplementedError
 
     def _configure_handlers(self):
         self._asgi_handlers["http"]._configure_methods()

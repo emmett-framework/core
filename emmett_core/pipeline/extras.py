@@ -7,7 +7,7 @@ from .pipe import Pipe
 
 class RequirePipe(Pipe):
     __slots__ = ["condition", "otherwise"]
-    current: Current
+    _current: Current
 
     def __init__(self, condition=None, otherwise=None):
         if condition is None or otherwise is None:
@@ -23,9 +23,9 @@ class RequirePipe(Pipe):
             if self.otherwise is not None:
                 if callable(self.otherwise):
                     return self.otherwise()
-                redirect(self.__class__.current, self.otherwise)
+                redirect(self.__class__._current, self.otherwise)
             else:
-                redirect(self.__class__.current, "/")
+                redirect(self.__class__._current, "/")
         return await next_pipe(**kwargs)
 
     async def pipe_ws(self, next_pipe, **kwargs):
@@ -37,7 +37,7 @@ class RequirePipe(Pipe):
 
 class JSONPipe(Pipe):
     __slots__ = ["decoder", "encoder"]
-    current: Current
+    _current: Current
     output = _json_type
 
     def __init__(self):
@@ -45,7 +45,7 @@ class JSONPipe(Pipe):
         self.encoder = Serializers.get_for("json")
 
     async def pipe_request(self, next_pipe, **kwargs):
-        self.__class__.current.response.headers._data["content-type"] = "application/json"
+        self.__class__._current.response.headers._data["content-type"] = "application/json"
         return self.encoder(await next_pipe(**kwargs))
 
     def on_receive(self, data):

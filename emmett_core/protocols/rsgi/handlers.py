@@ -5,7 +5,7 @@ import os
 import re
 from typing import Awaitable, Callable, Optional, Tuple
 
-from ...ctx import Current, RequestContext, WSContext
+from ...ctx import RequestContext, WSContext
 from ...http.response import HTTPFileResponse, HTTPResponse, HTTPStringResponse
 from ...http.wrappers.response import Response
 from ...utils import cachedprop
@@ -18,11 +18,11 @@ REGEX_STATIC_LANG = re.compile(r"^/(?P<l>\w{2}/)?static/(?P<m>__[\w\-\.]__+/)?(?
 
 
 class Handler:
-    __slots__ = ["app"]
-    current: Current
+    __slots__ = ["app", "current"]
 
-    def __init__(self, app):
+    def __init__(self, app, current):
         self.app = app
+        self.current = current
 
 
 class RequestHandler(Handler):
@@ -128,7 +128,7 @@ class HTTPHandler(RequestHandler):
         )
         response = Response()
         ctx = RequestContext(self.app, request, response)
-        ctx_token = self.__class__.current._init_(ctx)
+        ctx_token = self.current._init_(ctx)
         try:
             http = await self.router.dispatch(request, response)
         except HTTPResponse as http_exception:
@@ -143,11 +143,11 @@ class HTTPHandler(RequestHandler):
             self.app.log.exception("Application exception:")
             http = HTTPStringResponse(500, await self.error_handler(), headers=response.headers)
         finally:
-            self.__class__.current._close_(ctx_token)
+            self.current._close_(ctx_token)
         return http
 
     async def _exception_handler(self) -> str:
-        self.__class__.current.response.headers._data["content-type"] = "text/plain"
+        self.current.response.headers._data["content-type"] = "text/plain"
         return "Internal error"
 
 
@@ -198,7 +198,7 @@ class WSHandler(RequestHandler):
 
     async def dynamic_handler(self, scope, transport: WSTransport, path: str):
         ctx = WSContext(self.app, Websocket(scope, path, transport))
-        ctx_token = self.__class__.current._init_(ctx)
+        ctx_token = self.current._init_(ctx)
         try:
             await self.router.dispatch(ctx.websocket)
         except HTTPResponse as http:
@@ -210,7 +210,7 @@ class WSHandler(RequestHandler):
             transport.status = 500
             self.app.log.exception("Application exception:")
         finally:
-            self.__class__.current._close_(ctx_token)
+            self.current._close_(ctx_token)
 
     def _close_connection(self, transport: WSTransport):
         transport.protocol.close(transport.status)
