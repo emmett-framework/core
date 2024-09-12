@@ -42,6 +42,7 @@ class RequestHandler(Handler):
 
 class HTTPHandler(RequestHandler):
     __slots__ = ["pre_handler", "static_handler", "static_matcher", "__dict__"]
+    wapper_cls = Request
 
     def _bind_router(self):
         self.router = self.app._router_http
@@ -119,7 +120,7 @@ class HTTPHandler(RequestHandler):
         return self.dynamic_handler(scope, protocol, path)
 
     async def dynamic_handler(self, scope, protocol, path: str) -> HTTPResponse:
-        request = Request(
+        request = self.__class__.wapper_cls(
             scope,
             path,
             protocol,
@@ -153,6 +154,7 @@ class HTTPHandler(RequestHandler):
 
 class WSHandler(RequestHandler):
     __slots__ = ["pre_handler", "__dict__"]
+    wrapper_cls = Websocket
 
     def _bind_router(self):
         self.router = self.app._router_ws
@@ -197,7 +199,7 @@ class WSHandler(RequestHandler):
         return self.dynamic_handler(scope, transport, path)
 
     async def dynamic_handler(self, scope, transport: WSTransport, path: str):
-        ctx = WSContext(self.app, Websocket(scope, path, transport))
+        ctx = WSContext(self.app, self.__class__.wrapper_cls(scope, path, transport))
         ctx_token = self.current._init_(ctx)
         try:
             await self.router.dispatch(ctx.websocket)

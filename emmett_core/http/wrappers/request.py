@@ -1,3 +1,4 @@
+import datetime
 from abc import abstractmethod
 from cgi import FieldStorage, parse_header
 from io import BytesIO
@@ -5,8 +6,7 @@ from typing import Any
 from urllib.parse import parse_qs
 
 from ...datastructures import sdict
-
-# from ..parsers import Parsers
+from ...parsers import Parsers
 from ...utils import cachedprop
 from . import IngressWrapper
 from .helpers import FileStorage
@@ -21,15 +21,10 @@ class Request(IngressWrapper):
     @abstractmethod
     async def body(self) -> bytes: ...
 
-    # TODO
-    # @cachedprop
-    # def now(self) -> pendulum.DateTime:
-    #     return pendulum.instance(self._now)
-
-    # TODO
-    # @cachedprop
-    # def now_local(self) -> pendulum.DateTime:
-    #     return self.now.in_timezone(pendulum.local_timezone())  # type: ignore
+    #: allow eventual overrides
+    @cachedprop
+    def now(self) -> datetime.datetime:
+        return self._now
 
     @cachedprop
     def content_type(self) -> str:
@@ -61,13 +56,11 @@ class Request(IngressWrapper):
         return sdict(), sdict()
 
     def _load_params_json(self, data):
-        # TODO
-        # try:
-        #     params = Parsers.get_for("json")(data)
-        # except Exception:
-        #     params = {}
-        # return sdict(params), sdict()
-        ...
+        try:
+            params = Parsers.get_for("json")(data)
+        except Exception:
+            params = {}
+        return sdict(params), sdict()
 
     def _load_params_form_urlencoded(self, data):
         rv = sdict()
