@@ -69,7 +69,7 @@ def create_logger(app):
         if filecfg := lconf.file:
             lfile = os.path.join(app.root_path, "logs", lname + ".log")
             max_size = filecfg.max_size or _def_log_config.production.max_size
-            file_no = filecfg.file_no or _def_log_config.production.file_no
+            file_no = filecfg.no or _def_log_config.production.file_no
             handler_cls = DebugHandlerRF if lconf.on_app_debug else HandlerRF
             handler = handler_cls(lfile, maxBytes=max_size, backupCount=file_no)
         else:

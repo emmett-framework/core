@@ -117,6 +117,7 @@ class SessionPipe(Pipe):
 class CookieSessionPipe(SessionPipe):
     def __init__(
         self,
+        current,
         key,
         expire=3600,
         secure=False,
@@ -127,6 +128,7 @@ class CookieSessionPipe(SessionPipe):
         compression_level=0,
     ):
         super().__init__(
+            current,
             expire=expire,
             secure=secure,
             samesite=samesite,
@@ -212,6 +214,7 @@ class FileSessionPipe(BackendStoredSessionPipe):
 
     def __init__(
         self,
+        current,
         expire=3600,
         secure=False,
         samesite="Lax",
@@ -221,6 +224,7 @@ class FileSessionPipe(BackendStoredSessionPipe):
         filename_template="emt_%s.sess",
     ):
         super().__init__(
+            current,
             expire=expire,
             secure=secure,
             samesite=samesite,
@@ -289,6 +293,7 @@ class FileSessionPipe(BackendStoredSessionPipe):
 class RedisSessionPipe(BackendStoredSessionPipe):
     def __init__(
         self,
+        current,
         redis,
         prefix="emtsess:",
         expire=3600,
@@ -299,6 +304,7 @@ class RedisSessionPipe(BackendStoredSessionPipe):
         cookie_data=None,
     ):
         super().__init__(
+            current,
             expire=expire,
             secure=secure,
             samesite=samesite,
@@ -334,8 +340,7 @@ class SessionManager:
 
     @classmethod
     def _build_pipe(cls, handler_cls: Type[TSessionPipe], *args: Any, **kwargs: Any) -> TSessionPipe:
-        cls._pipe = handler_cls(*args, **kwargs)
-        return cls._pipe
+        raise NotImplementedError
 
     @classmethod
     def cookies(

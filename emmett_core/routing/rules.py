@@ -56,6 +56,7 @@ class HTTPRoutingRule(RoutingRule):
         "schemes",
     ]
     current: Current
+    route_cls = HTTPRoute
 
     def __init__(
         self,
@@ -63,7 +64,6 @@ class HTTPRoutingRule(RoutingRule):
         paths=None,
         name=None,
         pipeline=None,
-        injectors=None,
         schemes=None,
         hostname=None,
         methods=None,
@@ -94,7 +94,7 @@ class HTTPRoutingRule(RoutingRule):
         if output not in self.router._outputs:
             raise SyntaxError(f"Invalid output specified. Allowed values are: {', '.join(self.router._outputs.keys())}")
         self.output_type = output
-        self.pipeline = self.router.pipeline + (pipeline or []) + self.router.injectors + (injectors or [])
+        self.pipeline = self.router.pipeline + (pipeline or [])
         self.cache_rule = None
         if cache:
             if not isinstance(cache, RouteCacheRule):
@@ -124,7 +124,7 @@ class HTTPRoutingRule(RoutingRule):
         output_type = pipeline_obj._output_type() or self.output_type
         self.response_builder, self.head_builder = self._make_builders(output_type)
         for idx, path in enumerate(self.paths):
-            self.router.add_route(HTTPRoute(self, path, idx))
+            self.router.add_route(self.__class__.route_cls(self, path, idx))
         return f
 
 
@@ -142,6 +142,7 @@ class WebsocketRoutingRule(RoutingRule):
         "prefix",
         "schemes",
     ]
+    route_cls = WebsocketRoute
 
     def __init__(self, router, paths=None, name=None, pipeline=None, schemes=None, hostname=None, prefix=None):
         super().__init__(router)
@@ -151,9 +152,11 @@ class WebsocketRoutingRule(RoutingRule):
             self.paths = []
         if not isinstance(self.paths, (list, tuple)):
             self.paths = (self.paths,)
-        self.schemes = schemes or ("ws", "wss")
+        self.schemes = schemes or ("http", "https")
         if not isinstance(self.schemes, (list, tuple)):
             self.schemes = (self.schemes,)
+        if not set(self.schemes).issubset(ALLOWED_SCHEMES):
+            raise SyntaxError(f"Invalid schemes specified. Allowed values are: {', '.join(ALLOWED_SCHEMES)}")
         self.hostname = hostname or self.app.config.hostname_default
         if prefix:
             if not prefix.startswith("/"):
@@ -179,5 +182,5 @@ class WebsocketRoutingRule(RoutingRule):
         self.pipeline_flow_send = pipeline_obj._flow_send()
         self.f = wrapped_f
         for idx, path in enumerate(self.paths):
-            self.router.add_route(WebsocketRoute(self, path, idx))
+            self.router.add_route(self.__class__.route_cls(self, path, idx))
         return f

@@ -100,8 +100,8 @@ class LifeSpanHandler(Handler):
 class RequestHandler(Handler):
     __slots__ = ["router"]
 
-    def __init__(self, app):
-        super().__init__(app)
+    def __init__(self, app, current):
+        super().__init__(app, current)
         self._bind_router()
         self._configure_methods()
 
@@ -115,6 +115,7 @@ class RequestHandler(Handler):
 class HTTPHandler(RequestHandler):
     __slots__ = ["pre_handler", "static_handler", "static_matcher", "__dict__"]
     wrapper_cls = Request
+    response_cls = Response
 
     def _bind_router(self):
         self.router = self.app._router_http
@@ -203,7 +204,7 @@ class HTTPHandler(RequestHandler):
             max_content_length=self.app.config.request_max_content_length,
             body_timeout=self.app.config.request_body_timeout,
         )
-        response = Response()
+        response = self.response_cls()
         ctx = RequestContext(self.app, request, response)
         ctx_token = self.current._init_(ctx)
         try:

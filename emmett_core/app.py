@@ -5,7 +5,7 @@ import sys
 from logging import Logger
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Set, Type, Union
 
-from ._internal import create_missing_app_folders, get_root_path, warn_of_deprecation
+from ._internal import create_missing_app_folders, get_root_path
 from .datastructures import gsdict, sdict
 from .extensions import Extension, ExtensionType, Signals
 from .pipeline import Pipe
@@ -264,7 +264,7 @@ class App:
     debug = None
     config_class = Config
     modules_class = AppModule
-    routers_class = (HTTPRouter, WebsocketRouter)
+    signals_class = Signals
     test_client_class = None
 
     def __init__(self, import_name: str, root_path: Optional[str] = None, url_prefix: Optional[str] = None, **opts):
@@ -282,19 +282,18 @@ class App:
         self._language_force_on_url = False
         #: init routing
         self._pipeline: List[Pipe] = []
-        router_http_cls, router_ws_cls = self.__class__.routers_class
-        self._router_http = router_http_cls(self, url_prefix=url_prefix)
-        self._router_ws = router_ws_cls(self, url_prefix=url_prefix)
+        self._init_routers(url_prefix)
         self._asgi_handlers = {}
         self._rsgi_handlers = {}
         self.error_handlers: Dict[int, Callable[[], Awaitable[str]]] = {}
+        self._init_handlers()
         #: init logger
         self._logger = None
         self.logger_name = self.import_name
         #: init extensions
         self.ext: sdict[str, Extension] = sdict()
         self._extensions_env: sdict[str, Any] = sdict()
-        self._extensions_listeners: Dict[str, List[Callable[..., Any]]] = {element.value: [] for element in Signals}
+        self._extensions_listeners: Dict[str, List[Callable[..., Any]]] = {str(element): [] for element in self.signals_class}
         #: finalise
         self._modules: Dict[str, AppModule] = {}
         self._register_with_ctx()
@@ -305,6 +304,9 @@ class App:
         self.root_path = root_path
         self.static_path = os.path.join(self.root_path, "static")
         create_missing_app_folders(self)
+
+    def _init_routers(self, url_prefix):
+        raise NotImplementedError
 
     def _init_handlers(self):
         raise NotImplementedError
@@ -352,9 +354,9 @@ class App:
     @language_force_on_url.setter
     def language_force_on_url(self, value: bool):
         self._language_force_on_url = value
-        self._router_http._set_language_handling()
-        self._router_ws._set_language_handling()
-        self._configure_asgi_handlers()
+        self._router_http._mixin_cls._set_language_impl(self._router_http)
+        self._router_ws._mixin_cls._set_language_impl(self._router_ws)
+        self._configure_handlers()
 
     @property
     def pipeline(self) -> List[Pipe]:
@@ -448,24 +450,14 @@ class App:
     #: Add an extension to application
     def use_extension(self, ext_cls: Type[ExtensionType]) -> ExtensionType:
         if not issubclass(ext_cls, Extension):
-            raise RuntimeError(f"{ext_cls.__name__} is an invalid Emmett extension")
+            raise RuntimeError(f"{ext_cls.__name__} is an invalid extension")
         ext_env, ext_config = self.__init_extension(ext_cls)
         ext = self.ext[ext_cls.__name__] = ext_cls(self, ext_env, ext_config)
         self.__register_extension_listeners(ext)
         ext.on_load()
         return ext
 
-    #: Add a template extension to application
-    def use_template_extension(self, ext_cls, **config):
-        return self.templater.use_extension(ext_cls, **config)
-
-    def send_signal(self, signal: Union[str, Signals], *args, **kwargs):
-        if not isinstance(signal, Signals):
-            warn_of_deprecation("App.send_signal str argument", "extensions.Signals as argument", stack=3)
-            try:
-                signal = Signals[signal]
-            except KeyError:
-                raise SyntaxError(f"{signal} is not a valid signal")
+    def send_signal(self, signal: Signals, *args, **kwargs):
         for listener in self._extensions_listeners[signal]:
             listener(*args, **kwargs)
 

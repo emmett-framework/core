@@ -141,7 +141,6 @@ class HTTPRouter(_HTTPRouter):
         "routes_out",
         "routes",
         "pipeline",
-        "injectors",
     ]
 
     _mixin_cls = RouterMixin
@@ -153,13 +152,11 @@ class HTTPRouter(_HTTPRouter):
         "auto": AutoResponseBuilder,
         "bytes": BytesResponseBuilder,
         "str": ResponseBuilder,
-        # "template": TemplateResponseBuilder
     }
 
     def __init__(self, *args, **kwargs):
         self._mixin_cls._init_router_(self, *args, **kwargs)
         self.pipeline = []
-        self.injectors = []
 
     def add_route_str(self, route):
         self._routes_str[route.name] = "%s %s://%s%s%s -> %s" % (

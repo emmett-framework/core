@@ -59,7 +59,7 @@ class HttpUrlBuilder(UrlBuilder):
     __slots__ = ("components", "_args")
 
     def add_static_versioning(self, args):
-        versioning = self.current.app._router_http.static_versioning
+        versioning = self.current.app._router_http.static_versioning()
         if self.path.startswith("/static") and versioning:
             self.components.insert(1, "/_{}")
             args.insert(1, str(versioning))
@@ -111,7 +111,7 @@ class Url:
             try:
                 url_components = self.current.app._router_http.routes_out[path]["path"]
                 url_host = self.current.app._router_http.routes_out[path]["host"]
-                builder = HttpUrlBuilder(url_components)
+                builder = HttpUrlBuilder(self.current, url_components)
                 # try to use the correct hostname
                 if url_host is not None:
                     try:
@@ -123,12 +123,12 @@ class Url:
             except KeyError:
                 if path.endswith(".static"):
                     module = module or path.rsplit(".", 1)[0]
-                    builder = HttpUrlBuilder([f"/static/__{module}__"])
+                    builder = HttpUrlBuilder(self.current, [f"/static/__{module}__"])
                 else:
                     raise RuntimeError(f'invalid url("{path}",...)')
         # handle classic urls
         else:
-            builder = HttpUrlBuilder([path])
+            builder = HttpUrlBuilder(self.current, [path])
         # add language
         lang = None
         if self.current.app.language_force_on_url:
@@ -182,7 +182,7 @@ class Url:
             try:
                 url_components = self.current.app._router_ws.routes_out[path]["path"]
                 url_host = self.current.app._router_ws.routes_out[path]["host"]
-                builder = UrlBuilder(url_components)
+                builder = UrlBuilder(self.current, url_components)
                 # try to use the correct hostname
                 if url_host is not None:
                     # TODO: remap host
@@ -196,7 +196,7 @@ class Url:
                 raise RuntimeError(f'invalid url("{path}",...)')
         # handle classic urls
         else:
-            builder = UrlBuilder([path])
+            builder = UrlBuilder(self.current, [path])
         # add language
         lang = None
         if self.current.app.language_force_on_url:

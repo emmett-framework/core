@@ -20,8 +20,7 @@ class listen_signal:
     _inst_count_ = 0
 
     def __init__(self, signal: Signals):
-        signal = Signals[signal]
-        self.signal = signal.value
+        self.signal = signal
         self._inst_count_ = listen_signal._inst_count_
         listen_signal._inst_count_ += 1
 
@@ -68,7 +67,7 @@ class Extension(metaclass=MetaExtension):
     def __init_listeners(self):
         self._listeners_ = []
         for _name, obj in self._all_listeners_.items():
-            self._listeners_.append((obj.signal, _wrap_listener(self, obj.f)))
+            self._listeners_.append((str(obj.signal), _wrap_listener(self, obj.f)))
 
     def on_load(self):
         pass
