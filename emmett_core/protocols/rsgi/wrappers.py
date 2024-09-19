@@ -38,6 +38,16 @@ class RSGIIngressMixin:
             rv[key] = values
         return rv
 
+    @cachedprop
+    def client(self) -> str:
+        g = regex_client.search(self.headers.get("x-forwarded-for", ""))
+        client = (
+            (g.group() or "").split(",")[0] if g else (self._scope.client.split(":")[0] if self._scope.client else None)
+        )
+        if client in (None, "", "unknown", "localhost"):
+            client = "::1" if self.host.startswith("[") else "127.0.0.1"
+        return client  # type: ignore
+
 
 class Request(RSGIIngressMixin, _Request):
     __slots__ = ["_scope", "_proto"]
@@ -64,14 +74,6 @@ class Request(RSGIIngressMixin, _Request):
         except asyncio.TimeoutError:
             raise HTTPBytesResponse(408, b"Request timeout")
         return rv
-
-    @cachedprop
-    def client(self) -> str:
-        g = regex_client.search(self.headers.get("x-forwarded-for", ""))
-        client = (g.group() or "").split(",")[0] if g else (self._scope.client[0] if self._scope.client else None)
-        if client in (None, "", "unknown", "localhost"):
-            client = "::1" if self.host.startswith("[") else "127.0.0.1"
-        return client  # type: ignore
 
     async def push_promise(self, path: str):
         raise NotImplementedError("RSGI protocol doesn't support HTTP2 push.")

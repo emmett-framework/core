@@ -9,8 +9,9 @@ from ._internal import create_missing_app_folders, get_root_path
 from .datastructures import gsdict, sdict
 from .extensions import Extension, ExtensionType, Signals
 from .pipeline import Pipe
+from .protocols.rsgi.test_client.client import EmmettTestClient
 from .routing.cache import RouteCacheRule
-from .routing.router import HTTPRouter, RoutingCtx, RoutingCtxGroup, WebsocketRouter
+from .routing.router import RoutingCtx, RoutingCtxGroup
 from .typing import ErrorHandlerType
 from .utils import cachedprop
 
@@ -265,7 +266,7 @@ class App:
     config_class = Config
     modules_class = AppModule
     signals_class = Signals
-    test_client_class = None
+    test_client_class = EmmettTestClient
 
     def __init__(self, import_name: str, root_path: Optional[str] = None, url_prefix: Optional[str] = None, **opts):
         self.import_name = import_name
@@ -293,7 +294,9 @@ class App:
         #: init extensions
         self.ext: sdict[str, Extension] = sdict()
         self._extensions_env: sdict[str, Any] = sdict()
-        self._extensions_listeners: Dict[str, List[Callable[..., Any]]] = {str(element): [] for element in self.signals_class}
+        self._extensions_listeners: Dict[str, List[Callable[..., Any]]] = {
+            str(element): [] for element in self.signals_class
+        }
         #: finalise
         self._modules: Dict[str, AppModule] = {}
         self._register_with_ctx()
@@ -461,10 +464,8 @@ class App:
         for listener in self._extensions_listeners[signal]:
             listener(*args, **kwargs)
 
-    # TODO
-    # def test_client(self, use_cookies: bool = True, **kwargs) -> EmmettTestClient:
-    #     tclass = self.test_client_class or EmmettTestClient
-    #     return tclass(self, use_cookies=use_cookies, **kwargs)
+    def test_client(self, use_cookies: bool = True, **kwargs):
+        return self.__class__.test_client_class(self, use_cookies=use_cookies, **kwargs)
 
     def __call__(self, scope, receive, send):
         return self._asgi_handlers[scope["type"]](scope, receive, send)

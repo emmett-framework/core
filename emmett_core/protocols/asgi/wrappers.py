@@ -95,7 +95,7 @@ class ASGIIngressMixin:
         self._scope = scope
         self._receive = receive
         self._send = send
-        self.scheme = scope["scheme"]
+        self._scheme = scope["scheme"]
         self.path = scope["emt.path"]
 
     @cachedprop
@@ -122,7 +122,7 @@ class ASGIIngressMixin:
 
 
 class Request(ASGIIngressMixin, _Request):
-    __slots__ = ["_scope", "_receive", "_send"]
+    __slots__ = ["_scope", "_receive", "_send", "_scheme"]
 
     def __init__(
         self,
@@ -137,6 +137,10 @@ class Request(ASGIIngressMixin, _Request):
         self.body_timeout = body_timeout
         self._now = datetime.utcnow()
         self.method = scope["method"]
+
+    @cachedprop
+    def scheme(self):
+        return self._scheme
 
     @cachedprop
     def _input(self):
@@ -168,7 +172,7 @@ class Request(ASGIIngressMixin, _Request):
 
 
 class Websocket(ASGIIngressMixin, _Websocket):
-    __slots__ = ["_scope", "_receive", "_send", "_accepted"]
+    __slots__ = ["_scope", "_receive", "_send", "_scheme", "_accepted"]
 
     def __init__(self, scope: Scope, receive: Receive, send: Send):
         super().__init__(scope, receive, send)
@@ -177,6 +181,10 @@ class Websocket(ASGIIngressMixin, _Websocket):
         self._flow_send = None
         self.receive = self._accept_and_receive
         self.send = self._accept_and_send
+
+    @cachedprop
+    def scheme(self):
+        return {"ws": "http", "wss": "https"}[self._scheme]
 
     @property
     def _asgi_spec_version(self) -> int:
