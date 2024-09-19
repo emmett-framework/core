@@ -116,31 +116,27 @@ def get_app_module(module_name: str, raise_on_failure: bool = True) -> Optional[
     return sys.modules[module_name]
 
 
-# TODO: app_cls as argument
-def find_best_app(module: ModuleType) -> Any:
-    #: Given a module instance this tries to find the best possible
-    #  application in the module.
-    from .app import App
-
+#: Given a module instance this tries to find the best possible application in the module
+def find_best_app(module: ModuleType, app_cls) -> Any:
     # Search for the most common names first.
     for attr_name in ("app", "application"):
         app = getattr(module, attr_name, None)
-        if isinstance(app, App):
+        if isinstance(app, app_cls):
             return app
 
     # Otherwise find the only object that is an App instance.
-    matches = [v for k, v in module.__dict__.items() if isinstance(v, App)]
+    matches = [v for v in module.__dict__.values() if isinstance(v, app_cls)]
 
     if len(matches) == 1:
         return matches[0]
     raise RuntimeError(f"Failed to find Emmett application in module '{module.__name__}'.")
 
 
-def locate_app(module_name: str, app_name: str, raise_on_failure: bool = True) -> Any:
+def locate_app(app_cls, module_name: str, app_name: str, raise_on_failure: bool = True) -> Any:
     module = get_app_module(module_name, raise_on_failure=raise_on_failure)
     if app_name:
         return getattr(module, app_name, None)
-    return find_best_app(module)
+    return find_best_app(module, app_cls)
 
 
 #: deprecation helpers
