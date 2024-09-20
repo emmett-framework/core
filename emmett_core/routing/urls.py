@@ -215,6 +215,8 @@ class Url:
             if not hasattr(self.current, "request"):
                 raise RuntimeError(f'cannot build url("{path}",...) without current request')
             scheme = self._http_to_ws_schemes[self.current.request.scheme]
+        elif scheme:
+            scheme = self._http_to_ws_schemes.get(scheme, scheme)
         # add scheme and host
         if scheme:
             if host is None:
