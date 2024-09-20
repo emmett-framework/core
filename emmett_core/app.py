@@ -375,7 +375,6 @@ class App:
         self,
         paths: Optional[Union[str, List[str]]] = None,
         name: Optional[str] = None,
-        template: Optional[str] = None,
         pipeline: Optional[List[Pipe]] = None,
         schemes: Optional[Union[str, List[str]]] = None,
         hostname: Optional[str] = None,
@@ -389,7 +388,6 @@ class App:
         return self._router_http(
             paths=paths,
             name=name,
-            template=template,
             pipeline=pipeline,
             schemes=schemes,
             hostname=hostname,
@@ -490,7 +488,7 @@ class App:
         module_class: Optional[Type[AppModule]] = None,
         **kwargs: Any,
     ) -> AppModule:
-        module_class = module_class or self.config.modules_class
+        module_class = module_class or self.modules_class
         return module_class.from_app(
             self,
             import_name,
