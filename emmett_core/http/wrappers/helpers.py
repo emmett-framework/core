@@ -1,5 +1,5 @@
 import re
-from typing import BinaryIO, Dict, Iterable, Iterator, MutableMapping, Optional, Tuple, Union
+from typing import BinaryIO, Dict, Iterator, MutableMapping, Optional, Tuple, Union
 
 from ..._io import loop_copyfileobj
 
@@ -50,21 +50,52 @@ class ResponseHeaders(MutableMapping[str, str]):
         self._data.update(data)
 
 
-class FileStorage:
-    __slots__ = ("stream", "filename", "name", "headers", "content_type")
+# class FileStorage:
+#     __slots__ = ("stream", "filename", "name", "headers", "content_type")
 
-    def __init__(
-        self, stream: BinaryIO, filename: str, name: str = None, content_type: str = None, headers: Dict = None
-    ):
-        self.stream = stream
-        self.filename = filename
-        self.name = name
-        self.headers = headers or {}
-        self.content_type = content_type or self.headers.get("content-type")
+#     def __init__(
+#         self, stream: BinaryIO, filename: str, name: str = None, content_type: str = None, headers: Dict = None
+#     ):
+#         self.stream = stream
+#         self.filename = filename
+#         self.name = name
+#         self.headers = headers or {}
+#         self.content_type = content_type or self.headers.get("content-type")
+
+#     @property
+#     def content_length(self) -> int:
+#         return int(self.headers.get("content-length", 0))
+
+#     async def save(self, destination: Union[BinaryIO, str], buffer_size: int = 16384):
+#         close_destination = False
+#         if isinstance(destination, str):
+#             destination = open(destination, "wb")
+#             close_destination = True
+#         try:
+#             await loop_copyfileobj(self.stream, destination, buffer_size)
+#         finally:
+#             if close_destination:
+#                 destination.close()
+
+#     def __iter__(self) -> Iterable[bytes]:
+#         return iter(self.stream)
+
+#     def __repr__(self) -> str:
+#         return f"<{self.__class__.__name__}: " f"{self.filename} ({self.content_type})"
+
+
+class FileStorage:
+    __slots__ = ["inner"]
+
+    def __init__(self, inner):
+        self.inner = inner
+
+    def __getattr__(self, name):
+        return getattr(self.inner, name)
 
     @property
-    def content_length(self) -> int:
-        return int(self.headers.get("content-length", 0))
+    def size(self):
+        return self.inner.content_length
 
     async def save(self, destination: Union[BinaryIO, str], buffer_size: int = 16384):
         close_destination = False
@@ -72,13 +103,10 @@ class FileStorage:
             destination = open(destination, "wb")
             close_destination = True
         try:
-            await loop_copyfileobj(self.stream, destination, buffer_size)
+            await loop_copyfileobj(self.inner, destination, buffer_size)
         finally:
             if close_destination:
                 destination.close()
 
-    def __iter__(self) -> Iterable[bytes]:
-        return iter(self.stream)
-
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}: " f"{self.filename} ({self.content_type})"
+        return f"<{self.__class__.__name__}: {self.filename} ({self.content_type})>"

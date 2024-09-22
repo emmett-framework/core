@@ -33,12 +33,20 @@ crate-type = ["cdylib"]
 [dependencies]
 aes = "=0.8"
 anyhow = "=1.0"
+buf-read-ext = "=0.4"
 cfb8 = "=0.8"
 cfb-mode = "=0.8"
 ctr = "=0.9"
+encoding = "=0.2"
+#form_urlencoded = "=1.2"
+http = "=1.1"
+httparse = "=1.9"
+mime = "=0.3"
 pyo3 = { version = "=0.22", features = ["anyhow", "extension-module", "generate-import-lib"] }
 regex = "=1.10"
 ring = "=0.16"
+tempfile = "=3.12"
+textnonce = "=1.0"
 
 [target.'cfg(any(target_os = "freebsd", target_os = "windows"))'.dependencies]
 mimalloc = { version = "0.1.43", default-features = false, features = ["local_dynamic_tls"] }

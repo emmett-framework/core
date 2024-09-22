@@ -10,6 +10,8 @@ use pyo3::prelude::*;
 use std::sync::OnceLock;
 
 mod cryptography;
+mod http;
+mod multipart;
 mod routing;
 
 pub fn get_lib_version() -> &'static str {
@@ -22,10 +24,12 @@ pub fn get_lib_version() -> &'static str {
 }
 
 #[pymodule]
-fn _emmett_core(_py: Python, module: &Bound<PyModule>) -> PyResult<()> {
+fn _emmett_core(py: Python, module: &Bound<PyModule>) -> PyResult<()> {
     module.add("__version__", get_lib_version())?;
 
     cryptography::init_pymodule(module)?;
+    http::init_pymodule(module)?;
+    multipart::init_pymodule(py, module)?;
     routing::init_pymodule(module)?;
     Ok(())
 }

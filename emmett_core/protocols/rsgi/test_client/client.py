@@ -7,6 +7,7 @@ from io import BytesIO
 from ....ctx import Current, RequestContext
 from ....http.response import HTTPResponse, HTTPStringResponse
 from ....http.wrappers.response import Response
+from ....parsers import Parsers
 from ....utils import cachedprop
 from ..handlers import HTTPHandler
 from ..wrappers import Request
@@ -75,7 +76,7 @@ class ClientHTTPHandlerMixin:
 class ClientHTTPHandler(ClientHTTPHandlerMixin, HTTPHandler): ...
 
 
-class ClientResponse(object):
+class ClientResponse:
     def __init__(self, ctx, raw, status, headers):
         self.context = ctx
         self.raw = raw
@@ -91,10 +92,15 @@ class ClientResponse(object):
 
     @cachedprop
     def data(self):
-        return self.raw.decode("utf8")
+        if isinstance(self.raw, bytes):
+            return self.raw.decode("utf8")
+        return self.raw
+
+    def json(self):
+        return Parsers.get_for("json")(self.data)
 
 
-class EmmettTestClient(object):
+class EmmettTestClient:
     _current: Current
     _handler_cls = ClientHTTPHandler
 
@@ -245,16 +251,19 @@ class ClientHTTPProtocol:
         self.response_headers = []
         self.response_body = b""
         self.response_body_stream = None
+        self.consumed_input = False
 
     async def __call__(self):
+        self.consumed_input = True
         return self.input
 
     def __aiter__(self):
-        async def inner():
-            return self.input
+        return self
 
-        for _ in range(1):
-            yield inner
+    async def __anext__(self):
+        if self.consumed_input:
+            raise StopAsyncIteration
+        return await self()
 
     def response_empty(self, status, headers):
         self.response_status = status

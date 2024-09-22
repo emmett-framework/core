@@ -341,7 +341,6 @@ def test_routing_with_scheme(routing_ctx_scheme):
         assert route.name == "test_router.test_route"
 
     with routing_ctx_scheme.ctx("/test2/1/test") as ctx:
-        print(ctx.wrapper.scheme)
         route, _ = routing_ctx_scheme.router.match(ctx.wrapper)
         assert not route
 
