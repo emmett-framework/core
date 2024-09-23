@@ -122,9 +122,19 @@ impl FilePartReader {
 
     #[inline]
     fn read_chunk(&mut self, size: usize) -> Result<Vec<u8>> {
-        self.reader.fill_buf()?;
-        let mut buf = Vec::with_capacity(size);
-        self.reader.read_exact(&mut buf)?;
+        let mut buf = vec![0; size];
+        let mut len_read = 0;
+        while len_read < size {
+            self.reader.fill_buf()?;
+            let rsize = self.reader.read(&mut buf[len_read..])?;
+            if rsize == 0 {
+                break;
+            }
+            len_read += rsize;
+        }
+        if len_read < size {
+            buf.drain(len_read..);
+        }
         Ok(buf)
     }
 
