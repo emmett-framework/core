@@ -1,6 +1,6 @@
-import cgi
 import sys
 from io import BytesIO
+from urllib.parse import parse_qs
 
 from ....datastructures import sdict
 from .helpers import Headers, filesdict, stream_encode_multipart
@@ -92,6 +92,7 @@ class ScopeBuilder(object):
         headers=None,
         data=None,
         charset="utf-8",
+        boundary=None,
     ):
         if query_string is None and "?" in path:
             path, query_string = path.split("?", 1)
@@ -121,6 +122,7 @@ class ScopeBuilder(object):
         self.errors_stream = errors_stream
         self.input_stream = input_stream
         self.content_length = content_length
+        self.boundary = boundary
         self.closed = False
 
         if data:
@@ -146,7 +148,7 @@ class ScopeBuilder(object):
 
     @staticmethod
     def _parse_querystring(query_string):
-        dget = cgi.parse_qs(query_string, keep_blank_values=1)
+        dget = parse_qs(query_string, keep_blank_values=1)
         params = sdict(dget)
         for key, value in params.items():
             if isinstance(value, list) and len(value) == 1:
@@ -321,8 +323,12 @@ class ScopeBuilder(object):
             values = sdict()
             for d in [self.files, self.form]:
                 for key, val in d.items():
-                    values[key] = val
-            input_stream, content_length, boundary = stream_encode_multipart(values, charset=self.charset)
+                    if key not in values:
+                        values[key] = []
+                    values[key].extend(val)
+            input_stream, content_length, boundary = stream_encode_multipart(
+                values, charset=self.charset, boundary=self.boundary
+            )
             content_type += '; boundary="%s"' % boundary
         elif content_type == "application/x-www-form-urlencoded":
             values = url_encode(self.form, charset=self.charset)

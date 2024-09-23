@@ -182,7 +182,9 @@ class filesdict(sdict):
             if filename and content_type is None:
                 content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
             value = _FileHandler(file, filename, name, content_type)
-        self[name] = value
+        if name not in self:
+            self[name] = []
+        self[name].append(value)
 
 
 def get_current_url(scope, root_only=False, strip_querystring=False, host_only=False):
@@ -291,8 +293,7 @@ def stream_encode_multipart(values, threshold=1024 * 500, boundary=None, charset
             else:
                 if not isinstance(value, str):
                     value = str(value)
-                else:
-                    value = to_bytes(value, charset)
+                value = to_bytes(value, charset)
                 write("\r\n\r\n")
                 write_binary(value)
             write("\r\n")

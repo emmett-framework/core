@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import parse_qs
@@ -9,6 +8,7 @@ from ...http.wrappers.helpers import regex_client
 from ...http.wrappers.request import Request as _Request
 from ...http.wrappers.websocket import Websocket as _Websocket
 from ...utils import cachedprop
+from .helpers import BodyWrapper
 
 
 class RSGIIngressMixin:
@@ -66,14 +66,10 @@ class Request(RSGIIngressMixin, _Request):
         return dict(self.headers.items())
 
     @cachedprop
-    async def body(self) -> bytes:
+    def body(self) -> BodyWrapper:
         if self.max_content_length and self.content_length > self.max_content_length:
             raise HTTPBytesResponse(413, b"Request entity too large")
-        try:
-            rv = await asyncio.wait_for(self._proto(), timeout=self.body_timeout)
-        except asyncio.TimeoutError:
-            raise HTTPBytesResponse(408, b"Request timeout")
-        return rv
+        return BodyWrapper(self._proto, self.body_timeout)
 
     async def push_promise(self, path: str):
         raise NotImplementedError("RSGI protocol doesn't support HTTP2 push.")

@@ -1,11 +1,18 @@
 import datetime
 from abc import abstractmethod
-from cgi import FieldStorage, parse_header
 from io import BytesIO
-from typing import Any
+from typing import Any, Optional
 from urllib.parse import parse_qs
 
+from ..._emmett_core import (
+    MultiPartEncodingError,
+    MultiPartParsingError,
+    MultiPartReader,
+    MultiPartStateError,
+    get_content_type,
+)
 from ...datastructures import sdict
+from ...http.response import HTTPBytesResponse
 from ...parsers import Parsers
 from ...utils import cachedprop
 from . import IngressWrapper
@@ -27,8 +34,8 @@ class Request(IngressWrapper):
         return self._now
 
     @cachedprop
-    def content_type(self) -> str:
-        return parse_header(self.headers.get("content-type", ""))[0]
+    def content_type(self) -> Optional[str]:
+        return get_content_type(self.headers.get("content-type", "")) or "text/plain"
 
     @cachedprop
     def content_length(self) -> int:
@@ -52,18 +59,19 @@ class Request(IngressWrapper):
         _, rv = await self._input_params
         return rv
 
-    def _load_params_missing(self, data):
+    async def _load_params_missing(self, body):
         return sdict(), sdict()
 
-    def _load_params_json(self, data):
+    async def _load_params_json(self, body):
         try:
-            params = Parsers.get_for("json")(data)
+            params = Parsers.get_for("json")(await body)
         except Exception:
             params = {}
         return sdict(params), sdict()
 
-    def _load_params_form_urlencoded(self, data):
+    async def _load_params_form_urlencoded(self, body):
         rv = sdict()
+        data = await body
         for key, values in parse_qs(data.decode("latin-1"), keep_blank_values=True).items():
             if len(values) == 1:
                 rv[key] = values[0]
@@ -79,35 +87,27 @@ class Request(IngressWrapper):
     def _file_param_from_field(field):
         return FileStorage(BytesIO(field.file.read()), field.filename, field.name, field.type, field.headers)
 
-    def _load_params_form_multipart(self, data):
+    async def _load_params_form_multipart(self, body):
         params, files = sdict(), sdict()
-        field_storage = FieldStorage(
-            BytesIO(data),
-            headers=self._multipart_headers,
-            environ={"REQUEST_METHOD": self.method},
-            keep_blank_values=True,
-        )
-        for key in field_storage:
-            field = field_storage[key]
-            if isinstance(field, list):
-                if len(field) > 1:
-                    pvalues, fvalues = [], []
-                    for item in field:
-                        if item.filename is not None:
-                            fvalues.append(self._file_param_from_field(item))
-                        else:
-                            pvalues.append(item.value)
-                    if pvalues:
-                        params[key] = pvalues
-                    if fvalues:
-                        files[key] = fvalues
-                    continue
+        try:
+            parser = MultiPartReader(self.headers.get("content-type"))
+            async for chunk in body:
+                parser.parse(chunk)
+            for key, is_file, field in parser.contents():
+                if is_file:
+                    files[key] = data = files[key] or []
+                    data.append(FileStorage(field))
                 else:
-                    field = field[0]
-            if field.filename is not None:
-                files[key] = self._file_param_from_field(field)
-            else:
-                params[key] = field.value
+                    params[key] = data = params[key] or []
+                    data.append(field.decode("utf8"))
+        except MultiPartEncodingError:
+            raise HTTPBytesResponse(400, "Invalid encoding")
+        except (MultiPartParsingError, MultiPartStateError):
+            raise HTTPBytesResponse(400, "Invalid multipart data")
+        for target in (params, files):
+            for key, val in target.items():
+                if len(val) == 1:
+                    target[key] = val[0]
         return params, files
 
     _params_loaders = {
@@ -116,9 +116,9 @@ class Request(IngressWrapper):
         "multipart/form-data": _load_params_form_multipart,
     }
 
-    async def _load_params(self):
+    def _load_params(self):
         loader = self._params_loaders.get(self.content_type, self._load_params_missing)
-        return loader(self, await self.body)
+        return loader(self, self.body)
 
     @abstractmethod
     async def push_promise(self, path: str): ...
