@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime
 from typing import Any, Callable, Dict, Iterator, List, Mapping, Optional, Tuple, Union
 from urllib.parse import parse_qs
@@ -9,7 +8,7 @@ from ...http.wrappers.helpers import regex_client
 from ...http.wrappers.request import Request as _Request
 from ...http.wrappers.websocket import Websocket as _Websocket
 from ...utils import cachedprop
-from .helpers import RequestCancelled
+from .helpers import BodyWrapper
 from .typing import Receive, Scope, Send
 
 
@@ -58,36 +57,6 @@ class Headers(Mapping[str, str]):
     def values(self) -> Iterator[str]:  # type: ignore
         for value in self._data.values():
             yield value.decode("latin-1")
-
-
-class Body:
-    __slots__ = ("_data", "_receive", "_max_content_length")
-
-    def __init__(self, receive, max_content_length=None):
-        self._data = bytearray()
-        self._receive = receive
-        self._max_content_length = max_content_length
-
-    def append(self, data: bytes):
-        if data == b"":
-            return
-        self._data.extend(data)
-        if self._max_content_length is not None and len(self._data) > self._max_content_length:
-            raise HTTPBytesResponse(413, b"Request entity too large")
-
-    async def __load(self) -> bytes:
-        while True:
-            event = await self._receive()
-            if event["type"] == "http.request":
-                self.append(event["body"])
-                if not event.get("more_body", False):
-                    break
-            elif event["type"] == "http.disconnect":
-                raise RequestCancelled
-        return bytes(self._data)
-
-    def __await__(self):
-        return self.__load().__await__()
 
 
 class ASGIIngressMixin:
@@ -143,18 +112,10 @@ class Request(ASGIIngressMixin, _Request):
         return self._scheme
 
     @cachedprop
-    def _input(self):
-        return Body(self._receive, self.max_content_length)
-
-    @cachedprop
-    async def body(self) -> bytes:
+    def body(self) -> BodyWrapper:
         if self.max_content_length and self.content_length > self.max_content_length:
             raise HTTPBytesResponse(413, b"Request entity too large")
-        try:
-            rv = await asyncio.wait_for(self._input, timeout=self.body_timeout)
-        except asyncio.TimeoutError:
-            raise HTTPBytesResponse(408, b"Request timeout")
-        return rv
+        return BodyWrapper(self._receive, self.body_timeout)
 
     async def push_promise(self, path: str):
         if "http.response.push" not in self._scope.get("extensions", {}):

@@ -252,6 +252,7 @@ class ClientHTTPProtocol:
         self.response_body = b""
         self.response_body_stream = None
         self.consumed_input = False
+        self.input_step = 0
 
     async def __call__(self):
         self.consumed_input = True
@@ -263,7 +264,13 @@ class ClientHTTPProtocol:
     async def __anext__(self):
         if self.consumed_input:
             raise StopAsyncIteration
-        return await self()
+        input_range = (4096 * self.input_step, 4096 * (self.input_step + 1))
+        ret = self.input[input_range[0] : input_range[1]]
+        if not ret:
+            self.consumed_input = True
+            raise StopAsyncIteration
+        self.input_step += 1
+        return ret
 
     def response_empty(self, status, headers):
         self.response_status = status
