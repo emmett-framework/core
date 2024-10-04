@@ -3,6 +3,7 @@ from typing import Any
 
 from ...datastructures import sdict
 from ...utils import cachedprop
+from ..response import HTTPAsyncIterResponse, HTTPFileResponse, HTTPIOResponse, HTTPIterResponse
 from . import Wrapper
 from .helpers import ResponseHeaders
 
@@ -30,3 +31,17 @@ class Response(Wrapper):
     @content_type.setter
     def content_type(self, value: str):
         self.headers["content-type"] = value
+
+    def wrap_iter(self, obj):
+        return HTTPIterResponse(obj, status_code=self.status, headers=self.headers, cookies=self.cookies)
+
+    def wrap_aiter(self, obj):
+        return HTTPAsyncIterResponse(obj, status_code=self.status, headers=self.headers, cookies=self.cookies)
+
+    def wrap_file(self, path):
+        return HTTPFileResponse(str(path), status_code=self.status, headers=self.headers, cookies=self.cookies)
+
+    def wrap_io(self, obj, chunk_size: int = 4096):
+        return HTTPIOResponse(
+            obj, status_code=self.status, headers=self.headers, cookies=self.cookies, chunk_size=chunk_size
+        )
