@@ -99,9 +99,14 @@ class HTTPRedirectResponse(HTTPResponse):
 
 class HTTPFileResponse(HTTPResponse):
     def __init__(
-        self, file_path: str, headers: Dict[str, str] = {}, cookies: Dict[str, Any] = {}, chunk_size: int = 4096
+        self,
+        file_path: str,
+        status_code: int = 200,
+        headers: Dict[str, str] = {},
+        cookies: Dict[str, Any] = {},
+        chunk_size: int = 4096,
     ):
-        super().__init__(200, headers=headers, cookies=cookies)
+        super().__init__(status_code, headers=headers, cookies=cookies)
         self.file_path = file_path
         self.chunk_size = chunk_size
 
@@ -166,9 +171,14 @@ class HTTPFileResponse(HTTPResponse):
 
 class HTTPIOResponse(HTTPResponse):
     def __init__(
-        self, io_stream: BinaryIO, headers: Dict[str, str] = {}, cookies: Dict[str, Any] = {}, chunk_size: int = 4096
+        self,
+        io_stream: BinaryIO,
+        status_code: int = 200,
+        headers: Dict[str, str] = {},
+        cookies: Dict[str, Any] = {},
+        chunk_size: int = 4096,
     ):
-        super().__init__(200, headers=headers, cookies=cookies)
+        super().__init__(status_code, headers=headers, cookies=cookies)
         self.io_stream = io_stream
         self.chunk_size = chunk_size
 
@@ -199,8 +209,10 @@ class HTTPIOResponse(HTTPResponse):
 
 
 class HTTPIterResponse(HTTPResponse):
-    def __init__(self, iter: Iterable[bytes], headers: Dict[str, str] = {}, cookies: Dict[str, Any] = {}):
-        super().__init__(200, headers=headers, cookies=cookies)
+    def __init__(
+        self, iter: Iterable[bytes], status_code: int = 200, headers: Dict[str, str] = {}, cookies: Dict[str, Any] = {}
+    ):
+        super().__init__(status_code, headers=headers, cookies=cookies)
         self.iter = iter
 
     async def _send_body(self, send):
@@ -215,8 +227,14 @@ class HTTPIterResponse(HTTPResponse):
 
 
 class HTTPAsyncIterResponse(HTTPResponse):
-    def __init__(self, iter: AsyncIterable[bytes], headers: Dict[str, str] = {}, cookies: Dict[str, Any] = {}):
-        super().__init__(200, headers=headers, cookies=cookies)
+    def __init__(
+        self,
+        iter: AsyncIterable[bytes],
+        status_code: int = 200,
+        headers: Dict[str, str] = {},
+        cookies: Dict[str, Any] = {},
+    ):
+        super().__init__(status_code, headers=headers, cookies=cookies)
         self.iter = iter
 
     async def _send_body(self, send):

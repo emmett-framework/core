@@ -9,10 +9,13 @@ from .._emmett_core import HTTPRouter as _HTTPRouter, WSRouter as _WSRouter
 from ..extensions import Signals
 from ..http.response import HTTPBytesResponse
 from .response import (
+    AsyncIterResponseBuilder,
     AutoResponseBuilder,
     BytesResponseBuilder,
     EmptyResponseBuilder,
-    ResponseBuilder,
+    IterResponseBuilder,
+    MetaResponseBuilder,
+    StringResponseBuilder,
 )
 from .rules import HTTPRoutingRule, RoutingRule, WebsocketRoutingRule
 
@@ -150,7 +153,10 @@ class HTTPRouter(_HTTPRouter):
         "empty": EmptyResponseBuilder,
         "auto": AutoResponseBuilder,
         "bytes": BytesResponseBuilder,
-        "str": ResponseBuilder,
+        "str": StringResponseBuilder,
+        "iter": IterResponseBuilder,
+        "aiter": AsyncIterResponseBuilder,
+        "http": MetaResponseBuilder,
     }
 
     def __init__(self, *args, **kwargs):
