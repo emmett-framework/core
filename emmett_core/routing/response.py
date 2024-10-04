@@ -52,7 +52,7 @@ class AsyncIterResponseBuilder(MetaResponseBuilder):
         return self.http_cls(output, status_code=response.status, headers=response.headers, cookies=response.cookies)
 
 
-class ResponseProcessor(MetaResponseBuilder):
+class ResponseProcessor(StringResponseBuilder):
     def process(self, output: Any, response: Response):
         raise NotImplementedError
 
