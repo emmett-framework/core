@@ -51,17 +51,17 @@ class ResponseHeaders(MutableMapping[str, str]):
 
 
 class FileStorage:
-    __slots__ = ["inner"]
+    __slots__ = ["file"]
 
-    def __init__(self, inner):
-        self.inner = inner
+    def __init__(self, file):
+        self.file = file
 
     def __getattr__(self, name):
-        return getattr(self.inner, name)
+        return getattr(self.file, name)
 
     @property
     def size(self):
-        return self.inner.content_length
+        return self.file.content_length
 
     async def save(self, destination: Union[BinaryIO, str], buffer_size: int = 16384):
         close_destination = False
@@ -69,7 +69,7 @@ class FileStorage:
             destination = open(destination, "wb")
             close_destination = True
         try:
-            await loop_copyfileobj(self.inner, destination, buffer_size)
+            await loop_copyfileobj(self.file, destination, buffer_size)
         finally:
             if close_destination:
                 destination.close()
