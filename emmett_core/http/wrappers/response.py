@@ -1,8 +1,5 @@
 from http.cookies import SimpleCookie
-from typing import Any
 
-from ...datastructures import sdict
-from ...utils import cachedprop
 from ..response import HTTPAsyncIterResponse, HTTPFileResponse, HTTPIOResponse, HTTPIterResponse
 from . import Wrapper
 from .helpers import ResponseHeaders
@@ -16,14 +13,6 @@ class Response(Wrapper):
         self.headers = ResponseHeaders({"content-type": "text/plain"})
         self.cookies = SimpleCookie()
 
-    @cachedprop
-    def meta(self) -> sdict[str, Any]:
-        return sdict()
-
-    @cachedprop
-    def meta_prop(self) -> sdict[str, Any]:
-        return sdict()
-
     @property
     def content_type(self) -> str:
         return self.headers["content-type"]
@@ -32,16 +21,16 @@ class Response(Wrapper):
     def content_type(self, value: str):
         self.headers["content-type"] = value
 
-    def wrap_iter(self, obj):
+    def wrap_iter(self, obj) -> HTTPIterResponse:
         return HTTPIterResponse(obj, status_code=self.status, headers=self.headers, cookies=self.cookies)
 
-    def wrap_aiter(self, obj):
+    def wrap_aiter(self, obj) -> HTTPAsyncIterResponse:
         return HTTPAsyncIterResponse(obj, status_code=self.status, headers=self.headers, cookies=self.cookies)
 
-    def wrap_file(self, path):
+    def wrap_file(self, path) -> HTTPFileResponse:
         return HTTPFileResponse(str(path), status_code=self.status, headers=self.headers, cookies=self.cookies)
 
-    def wrap_io(self, obj, chunk_size: int = 4096):
+    def wrap_io(self, obj, chunk_size: int = 4096) -> HTTPIOResponse:
         return HTTPIOResponse(
             obj, status_code=self.status, headers=self.headers, cookies=self.cookies, chunk_size=chunk_size
         )
