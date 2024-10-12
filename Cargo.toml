@@ -1,6 +1,6 @@
 [package]
 name = "emmett-core"
-version = "1.0.0"
+version = "1.0.1"
 description = "Emmett framework core libraries"
 authors = ["Giovanni Barillari <g@baro.dev>"]
 license = "BSD-3-Clause"
