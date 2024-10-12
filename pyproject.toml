@@ -51,7 +51,7 @@ all = ['emmett-core[rapidjson,reload]']
 dev = ['emmett-core[all,lint,test]']
 
 [project.urls]
-Homepage = 'https://github.com/emmett-framework/core'
+Homepage = 'https://emmett.sh'
 Funding = 'https://github.com/sponsors/gi0baro'
 Source = 'https://github.com/emmett-framework/core'
 
