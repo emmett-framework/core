@@ -1,3 +1,3 @@
 # Emmett-Core
 
-Core libraries for Emmett.
+[Emmett framework](https://emmett.sh) core libraries.
