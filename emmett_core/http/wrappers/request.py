@@ -59,7 +59,8 @@ class Request(IngressWrapper):
         _, rv = await self._input_params
         return rv
 
-    async def _load_params_missing(self, body):
+    @staticmethod
+    async def _load_params_missing(*args, **kwargs):
         return sdict(), sdict()
 
     async def _load_params_json(self, body):
