@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Callable, Dict, Iterator, List, Mapping, Optional, Tuple, Union
 from urllib.parse import parse_qs
 
@@ -104,7 +104,7 @@ class Request(ASGIIngressMixin, _Request):
         super().__init__(scope, receive, send)
         self.max_content_length = max_content_length
         self.body_timeout = body_timeout
-        self._now = datetime.utcnow()
+        self._now = datetime.now(UTC)
         self.method = scope["method"]
 
     @cachedprop
