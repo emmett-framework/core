@@ -1,5 +1,5 @@
 import contextvars
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from .utils import cachedprop
@@ -16,7 +16,7 @@ class Context:
 
     @property
     def now(self):
-        return datetime.now(UTC)
+        return datetime.utcnow()
 
 
 class RequestContext(Context):
