@@ -56,7 +56,9 @@ class ResponseProcessor(StringResponseBuilder):
     def process(self, output: Any, response: Response):
         raise NotImplementedError
 
-    def __call__(self, output: Any, response: Response) -> HTTPStringResponse:
+    def __call__(self, output: Any, response: Response) -> HTTPResponse:
+        if isinstance(output, HTTPResponse):
+            return output
         return self.http_cls(
             response.status, self.process(output, response), headers=response.headers, cookies=response.cookies
         )
@@ -66,8 +68,6 @@ class AutoResponseBuilder(ResponseProcessor):
     def process(self, output: Any, response: Response) -> str:
         if output is None:
             return ""
-        elif isinstance(output, str):
-            return output
-        elif isinstance(output, HTTPResponse):
+        if isinstance(output, str):
             return output
         return str(output)
