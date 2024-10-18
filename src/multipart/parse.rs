@@ -25,7 +25,6 @@ enum MultiPartParserState {
     Headers,
     Value(Part),
     File(FilePart),
-    Nested(Box<MultiPartParser>),
 }
 
 impl Default for MultiPartParserState {
@@ -53,10 +52,6 @@ impl MultiPartParser {
             consumed: false,
             stack: VecDeque::new(),
         }
-    }
-
-    fn take(self) -> VecDeque<Node> {
-        self.stack
     }
 
     fn parse_chunk<T>(&mut self, reader: &mut Cursor<T>) -> Result<()>
@@ -121,20 +116,6 @@ impl MultiPartParser {
                     }?
                 };
 
-                // Check for a nested multipart
-                let mut nested = false;
-                if let Some(ct) = part_headers.get(header::CONTENT_TYPE) {
-                    let mime: Mime = ct.to_str()?.parse()?;
-                    if mime.type_() == "multipart" {
-                        nested = true;
-                    }
-                }
-                if nested {
-                    let inner = MultiPartParser::new(self.boundaries.clone(), self.encoding.clone());
-                    self.state = MultiPartParserState::Nested(Box::new(inner));
-                    continue;
-                }
-
                 let mut is_file = false;
                 if let Some(cd) = part_headers.get(header::CONTENT_DISPOSITION) {
                     let cds = charset_decode(&self.encoding, cd.as_bytes())?;
@@ -160,22 +141,6 @@ impl MultiPartParser {
                         let part = Part::new(part_headers, &self.encoding)?;
                         self.state = MultiPartParserState::Value(part);
                     }
-                }
-            }
-
-            if let MultiPartParserState::Nested(nested) = &mut self.state {
-                let nres = nested.parse_chunk(reader);
-                if nres.is_err() || !nested.consumed {
-                    return nres;
-                }
-
-                let state = mem::take(&mut self.state);
-                match state {
-                    MultiPartParserState::Nested(nested) => {
-                        let nodes = nested.take();
-                        self.stack.extend(nodes);
-                    }
-                    _ => unreachable!(),
                 }
             }
 
