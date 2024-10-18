@@ -119,17 +119,12 @@ impl MultiPartParser {
                 let mut is_file = false;
                 if let Some(cd) = part_headers.get(header::CONTENT_DISPOSITION) {
                     let cds = charset_decode(&self.encoding, cd.as_bytes())?;
-                    let cd_type = cds.split(';').next().unwrap_or("");
-                    if cd_type == "attachment" {
-                        is_file = true;
-                    } else {
-                        let cd_params = cds.split_once(';').unwrap_or(("", "")).1;
-                        let mime: Mime = match format!("*/*; {cd_params}").parse() {
-                            Ok(v) => v,
-                            _ => Err::<Mime, anyhow::Error>(error_parsing!("foo"))?,
-                        };
-                        is_file = mime.get_param("filename").is_some();
-                    }
+                    let cd_params = cds.split_once(';').unwrap_or(("", "")).1;
+                    let mime: Mime = match format!("*/*; {cd_params}").parse() {
+                        Ok(v) => v,
+                        _ => Err::<Mime, anyhow::Error>(error_parsing!("invalid file content type"))?,
+                    };
+                    is_file = mime.get_param("filename").is_some();
                 };
 
                 match is_file {
