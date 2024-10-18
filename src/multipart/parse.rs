@@ -218,11 +218,6 @@ impl MultiPartReader {
                 output.push(b'\n');
                 output.extend(self.boundary.clone());
                 (vec![b'\r', b'\n'], vec![b'\r', b'\n', b'\r', b'\n'], output)
-            } else if !peeker.is_empty() && peeker[0] == b'\n' {
-                let mut output = Vec::with_capacity(1 + self.boundary.len());
-                output.push(b'\n');
-                output.extend(self.boundary.clone());
-                (vec![b'\n'], vec![b'\n', b'\n'], output)
             } else {
                 return Err(error_parsing!("no CrLf after boundary"));
             }
