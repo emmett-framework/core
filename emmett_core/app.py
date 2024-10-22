@@ -27,6 +27,7 @@ class Config(gsdict):
             static_version_urls=False,
             url_default_namespace=None,
             request_max_content_length=None,
+            request_multipart_max_size=1024 * 1024,
             request_body_timeout=None,
             response_timeout=None,
         )

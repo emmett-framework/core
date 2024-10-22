@@ -14,7 +14,7 @@ use std::{
 };
 
 use super::{
-    errors::{error_parsing, error_state},
+    errors::{error_parsing, error_size, error_state},
     parts::{FilePart, FilePartReader, Node, Part},
     utils::charset_decode,
 };
@@ -36,19 +36,23 @@ impl Default for MultiPartParserState {
 struct MultiPartParser {
     boundaries: (Vec<u8>, Vec<u8>, Vec<u8>),
     encoding: String,
+    max_part_size: usize,
     state: MultiPartParserState,
     buffer: Vec<u8>,
+    read_size: usize,
     pub consumed: bool,
     stack: VecDeque<Node>,
 }
 
 impl MultiPartParser {
-    fn new(boundaries: (Vec<u8>, Vec<u8>, Vec<u8>), encoding: String) -> Self {
+    fn new(boundaries: (Vec<u8>, Vec<u8>, Vec<u8>), encoding: String, max_part_size: usize) -> Self {
         Self {
             boundaries,
             encoding,
+            max_part_size,
             state: MultiPartParserState::Clean,
             buffer: Vec::new(),
+            read_size: 0,
             consumed: false,
             stack: VecDeque::new(),
         }
@@ -140,7 +144,12 @@ impl MultiPartParser {
             }
 
             if let MultiPartParserState::Value(part) = &mut self.state {
-                let (_, found) = reader.stream_until_token(lt_boundary, &mut part.value)?;
+                let (read, found) = reader.stream_until_token(lt_boundary, &mut part.value)?;
+                self.read_size += read;
+                if self.read_size >= self.max_part_size {
+                    return Err(error_size!());
+                }
+
                 if !found {
                     return Ok(());
                 }
@@ -149,6 +158,7 @@ impl MultiPartParser {
                 match state {
                     MultiPartParserState::Value(part) => {
                         self.stack.push_back(Node::Part(part));
+                        self.read_size = 0;
                     }
                     _ => unreachable!(),
                 }
@@ -182,17 +192,20 @@ impl MultiPartParser {
 pub(super) struct MultiPartReader {
     boundary: Vec<u8>,
     encoding: String,
+    max_part_size: usize,
     inner: Option<MultiPartParser>,
 }
 
 #[pymethods]
 impl MultiPartReader {
     #[new]
-    fn new(content_type_header_value: &str) -> Result<Self> {
+    #[pyo3(signature = (content_type_header_value, max_part_size = 1024 * 1024))]
+    fn new(content_type_header_value: &str, max_part_size: Option<usize>) -> Result<Self> {
         let (boundary, charset) = get_multipart_params(content_type_header_value)?;
         Ok(Self {
             boundary,
             encoding: charset,
+            max_part_size: max_part_size.unwrap_or(1024 * 1024),
             inner: None,
         })
     }
@@ -222,7 +235,11 @@ impl MultiPartReader {
                 return Err(error_parsing!("no CrLf after boundary"));
             }
         };
-        self.inner = Some(MultiPartParser::new(read_boundaries, self.encoding.clone()));
+        self.inner = Some(MultiPartParser::new(
+            read_boundaries,
+            self.encoding.clone(),
+            self.max_part_size,
+        ));
         self.inner.as_mut().unwrap().parse_chunk(&mut reader)
     }
 
