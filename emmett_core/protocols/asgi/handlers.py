@@ -202,6 +202,7 @@ class HTTPHandler(RequestHandler):
             receive,
             send,
             max_content_length=self.app.config.request_max_content_length,
+            max_multipart_size=self.app.config.request_multipart_max_size,
             body_timeout=self.app.config.request_body_timeout,
         )
         response = self.response_cls()

@@ -16,6 +16,10 @@ pub(crate) fn init_pymodule(py: Python, module: &Bound<PyModule>) -> PyResult<()
         py.get_type_bound::<errors::MultiPartParsingError>(),
     )?;
     module.add(
+        "MultiPartExceedingSizeError",
+        py.get_type_bound::<errors::MultiPartExceedingSizeError>(),
+    )?;
+    module.add(
         "MultiPartStateError",
         py.get_type_bound::<errors::MultiPartStateError>(),
     )?;

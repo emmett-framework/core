@@ -17,6 +17,12 @@ create_exception!(
 );
 create_exception!(_emmett_core, MultiPartStateError, PyRuntimeError, "MultiPartStateError");
 create_exception!(_emmett_core, MultiPartIOError, PyIOError, "MultiPartIOError");
+create_exception!(
+    _emmett_core,
+    MultiPartExceedingSizeError,
+    PyRuntimeError,
+    "MultiPartExceedingSizeError"
+);
 
 macro_rules! error_encoding {
     () => {
@@ -36,6 +42,12 @@ macro_rules! error_parsing {
     };
 }
 
+macro_rules! error_size {
+    () => {
+        super::errors::MultiPartExceedingSizeError::new_err("exceeding maximum allowed size").into()
+    };
+}
+
 macro_rules! error_state {
     () => {
         super::errors::MultiPartStateError::new_err("parsing incomplete").into()
@@ -45,4 +57,5 @@ macro_rules! error_state {
 pub(crate) use error_encoding;
 pub(crate) use error_io;
 pub(crate) use error_parsing;
+pub(crate) use error_size;
 pub(crate) use error_state;

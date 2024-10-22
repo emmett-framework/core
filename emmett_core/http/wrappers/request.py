@@ -6,6 +6,7 @@ from urllib.parse import parse_qs
 
 from ..._emmett_core import (
     MultiPartEncodingError,
+    MultiPartExceedingSizeError,
     MultiPartParsingError,
     MultiPartReader,
     MultiPartStateError,
@@ -91,7 +92,7 @@ class Request(IngressWrapper):
     async def _load_params_form_multipart(self, body):
         params, files = sdict(), sdict()
         try:
-            parser = MultiPartReader(self.headers.get("content-type"))
+            parser = MultiPartReader(self.headers.get("content-type"), self.max_multipart_size)
             async for chunk in body:
                 parser.parse(chunk)
             for key, is_file, field in parser.contents():
@@ -102,9 +103,11 @@ class Request(IngressWrapper):
                     params[key] = data = params[key] or []
                     data.append(field.decode("utf8"))
         except MultiPartEncodingError:
-            raise HTTPBytesResponse(400, "Invalid encoding")
+            raise HTTPBytesResponse(400, b"Invalid encoding")
         except (MultiPartParsingError, MultiPartStateError):
-            raise HTTPBytesResponse(400, "Invalid multipart data")
+            raise HTTPBytesResponse(400, b"Invalid multipart data")
+        except MultiPartExceedingSizeError:
+            raise HTTPBytesResponse(413, b"Request entity too large")
         for target in (params, files):
             for key, val in target.items():
                 if len(val) == 1:

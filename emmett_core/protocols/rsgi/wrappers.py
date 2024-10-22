@@ -53,10 +53,17 @@ class Request(RSGIIngressMixin, _Request):
     __slots__ = ["_scope", "_proto"]
 
     def __init__(
-        self, scope, path, protocol, max_content_length: Optional[int] = None, body_timeout: Optional[int] = None
+        self,
+        scope,
+        path,
+        protocol,
+        max_content_length: Optional[int] = None,
+        max_multipart_size: Optional[int] = None,
+        body_timeout: Optional[int] = None,
     ):
         super().__init__(scope, path, protocol)
         self.max_content_length = max_content_length
+        self.max_multipart_size = max_multipart_size
         self.body_timeout = body_timeout
         self._now = datetime.utcnow()
         self.method = scope.method

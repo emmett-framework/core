@@ -314,6 +314,27 @@ def test_missing_name_parameter_on_content_disposition(multipart_client):
     assert res.data == "Invalid multipart data"
 
 
+def test_multipart_max_size_exceeds_limit(multipart_client):
+    boundary = "------------------------4K1ON9fZkj9uCUmqLHRbbR"
+    multipart_data = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="small"\r\n\r\n'
+        "small content\r\n"
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="large"\r\n\r\n'
+        + ("x" * 1024 * 1024 + "x")  # 1MB + 1 byte of data
+        + "\r\n"
+        f"--{boundary}--\r\n"
+    ).encode("utf-8")
+    res = multipart_client.post(
+        "/",
+        data=multipart_data,
+        headers=[("content-type", f"multipart/form-data; boundary={boundary}"), ("transfer-encoding", "chunked")],
+    )
+    assert res.status == 413
+    assert res.data == "Request entity too large"
+
+
 def test_multipart_request_file_save(tmpdir: Path, multipart_save_client):
     path = tmpdir / "test.txt"
     target = tmpdir / "save.txt"
