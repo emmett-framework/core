@@ -25,6 +25,7 @@ enum MultiPartParserState {
     Headers,
     Value(Part),
     File(FilePart),
+    Skip,
 }
 
 impl Default for MultiPartParserState {
@@ -121,22 +122,30 @@ impl MultiPartParser {
                 };
 
                 let mut is_file = false;
+                let mut missing_mime = false;
                 if let Some(cd) = part_headers.get(header::CONTENT_DISPOSITION) {
                     let cds = charset_decode(&self.encoding, cd.as_bytes())?;
                     let cd_params = cds.split_once(';').unwrap_or(("", "")).1;
-                    let mime: Mime = match format!("*/*; {cd_params}").parse() {
-                        Ok(v) => v,
-                        _ => Err::<Mime, anyhow::Error>(error_parsing!("invalid file content type"))?,
+
+                    match format!("*/*;{cd_params}").parse::<Mime>() {
+                        Ok(mime) => {
+                            is_file = mime.get_param("filename").is_some();
+                        }
+                        Err(_) => {
+                            missing_mime = true;
+                        }
                     };
-                    is_file = mime.get_param("filename").is_some();
                 };
 
-                match is_file {
-                    true => {
+                match (is_file, missing_mime) {
+                    (true, _) => {
                         let filepart = FilePart::new(part_headers, &self.encoding)?;
                         self.state = MultiPartParserState::File(filepart);
                     }
-                    false => {
+                    (false, true) => {
+                        self.state = MultiPartParserState::Skip;
+                    }
+                    (false, false) => {
                         let part = Part::new(part_headers, &self.encoding)?;
                         self.state = MultiPartParserState::Value(part);
                     }
@@ -183,6 +192,15 @@ impl MultiPartParser {
                     }
                     _ => unreachable!(),
                 }
+            }
+
+            if let MultiPartParserState::Skip = &mut self.state {
+                let (_, found) = reader.stream_until_token(lt_boundary, &mut self.buffer)?;
+                if !found {
+                    return Ok(());
+                }
+
+                mem::take(&mut self.state);
             }
         }
     }
