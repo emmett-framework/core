@@ -44,7 +44,7 @@ mime = "=0.3"
 pyo3 = { version = "=0.22", features = ["anyhow", "extension-module", "generate-import-lib"] }
 regex = "=1.11"
 ring = "=0.16"
-tempfile = "=3.13"
+tempfile = "=3.14"
 textnonce = "=1.0"
 
 [target.'cfg(any(target_os = "freebsd", target_os = "windows"))'.dependencies]
