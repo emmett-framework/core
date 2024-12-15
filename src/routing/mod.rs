@@ -69,7 +69,7 @@ macro_rules! match_re_routes {
             None
         })
         .and_then(|(route, gnames, mgroups)| {
-            let pydict = PyDict::new_bound($py);
+            let pydict = PyDict::new($py);
             for (gname, gtype) in gnames {
                 let gval = mgroups.name(gname).map_or_else(
                     || Ok($py.None()),
@@ -79,7 +79,7 @@ macro_rules! match_re_routes {
                             ReGroupType::Int => super::parse::parse_int_arg($py, vstr),
                             ReGroupType::Float => super::parse::parse_float_arg($py, vstr),
                             ReGroupType::Date => super::parse::parse_date_arg($py, vstr),
-                            _ => Ok(vstr.into_py($py)),
+                            _ => Ok(vstr.into_py_any($py)?),
                         }
                     },
                 );
@@ -88,7 +88,7 @@ macro_rules! match_re_routes {
                 }
                 let _ = pydict.set_item(&gname[..], gval.unwrap());
             }
-            return Some((route.clone_ref($py), pydict.into_py($py)));
+            return Some((route.clone_ref($py), pydict.into_py_any($py).unwrap()));
         })
     }};
 }

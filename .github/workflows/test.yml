@@ -9,9 +9,6 @@ on:
     branches:
       - master
 
-env:
-  MATURIN_VERSION: 1.7.0
-
 jobs:
   linux:
     runs-on: ubuntu-latest
@@ -19,7 +16,6 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-        - '3.8'
         - '3.9'
         - '3.10'
         - '3.11'
@@ -37,7 +33,7 @@ jobs:
       run: |
         python -m venv .venv
         source .venv/bin/activate
-        pip install maturin==${{ env.MATURIN_VERSION }}
+        pip install maturin
         maturin develop --extras=test
     - name: Test
       run: |
@@ -50,7 +46,6 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-        - '3.8'
         - '3.9'
         - '3.10'
         - '3.11'
@@ -68,7 +63,7 @@ jobs:
       run: |
         python -m venv .venv
         source .venv/bin/activate
-        pip install maturin==${{ env.MATURIN_VERSION }}
+        pip install maturin
         maturin develop --extras=test
     - name: Test
       run: |
@@ -81,7 +76,6 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-        - '3.8'
         - '3.9'
         - '3.10'
         - '3.11'
@@ -99,7 +93,7 @@ jobs:
       run: |
         python -m venv venv
         venv/Scripts/Activate.ps1
-        pip install maturin==${{ env.MATURIN_VERSION }} pytest
+        pip install maturin pytest
         maturin develop --extras=test
     - name: Test
       run: |

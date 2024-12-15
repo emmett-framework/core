@@ -5,12 +5,13 @@ use http::{
     HeaderName, HeaderValue,
 };
 use mime::{self, Mime};
-use pyo3::{exceptions::PyStopIteration, prelude::*, types::PyBytes};
+use pyo3::{exceptions::PyStopIteration, prelude::*, types::PyBytes, IntoPyObjectExt};
 use std::{
     borrow::Cow,
     collections::VecDeque,
     io::{BufRead, Cursor},
     mem,
+    sync::Mutex,
 };
 
 use super::{
@@ -206,12 +207,12 @@ impl MultiPartParser {
     }
 }
 
-#[pyclass(module = "emmett_core._emmett_core")]
+#[pyclass(module = "emmett_core._emmett_core", frozen)]
 pub(super) struct MultiPartReader {
     boundary: Vec<u8>,
     encoding: String,
     max_part_size: usize,
-    inner: Option<MultiPartParser>,
+    inner: Mutex<Option<MultiPartParser>>,
 }
 
 #[pymethods]
@@ -224,12 +225,14 @@ impl MultiPartReader {
             boundary,
             encoding: charset,
             max_part_size: max_part_size.unwrap_or(1024 * 1024),
-            inner: None,
+            inner: Mutex::new(None),
         })
     }
 
-    fn parse(&mut self, data: Cow<[u8]>) -> Result<()> {
-        if let Some(inner) = &mut self.inner {
+    fn parse(&self, data: Cow<[u8]>) -> Result<()> {
+        let mut guard = self.inner.lock().unwrap();
+
+        if let Some(inner) = &mut *guard {
             let mut reader = Cursor::new(data);
             return inner.parse_chunk(&mut reader);
         }
@@ -253,29 +256,36 @@ impl MultiPartReader {
                 return Err(error_parsing!("no CrLf after boundary"));
             }
         };
-        self.inner = Some(MultiPartParser::new(
+        *guard = Some(MultiPartParser::new(
             read_boundaries,
             self.encoding.clone(),
             self.max_part_size,
         ));
-        self.inner.as_mut().unwrap().parse_chunk(&mut reader)
+        guard.as_mut().unwrap().parse_chunk(&mut reader)
     }
 
-    fn contents(&mut self, py: Python) -> Result<Py<MultiPartContentsIter>> {
-        if let Some(mut inner) = self.inner.take() {
+    fn contents(&self, py: Python) -> Result<Py<MultiPartContentsIter>> {
+        let mut guard = self.inner.lock().unwrap();
+
+        if let Some(mut inner) = guard.take() {
             if !inner.consumed {
                 return Err(error_state!());
             }
             let nodes = mem::take(&mut inner.stack);
-            return Ok(Py::new(py, MultiPartContentsIter { inner: nodes })?);
+            return Ok(Py::new(
+                py,
+                MultiPartContentsIter {
+                    inner: Mutex::new(nodes),
+                },
+            )?);
         }
         Err(error_state!())
     }
 }
 
-#[pyclass(module = "emmett_core._emmett_core")]
+#[pyclass(module = "emmett_core._emmett_core", frozen)]
 pub(super) struct MultiPartContentsIter {
-    inner: VecDeque<Node>,
+    inner: Mutex<VecDeque<Node>>,
 }
 
 #[pymethods]
@@ -284,14 +294,16 @@ impl MultiPartContentsIter {
         pyself
     }
 
-    fn __next__(&mut self, py: Python) -> PyResult<(String, bool, PyObject)> {
-        if let Some(item) = self.inner.pop_front() {
+    fn __next__(&self, py: Python) -> PyResult<(String, bool, PyObject)> {
+        let mut guard = self.inner.lock().unwrap();
+
+        if let Some(item) = guard.pop_front() {
             return match item {
-                Node::Part(node) => Ok((node.name, false, PyBytes::new_bound(py, &node.value[..]).into_py(py))),
+                Node::Part(node) => Ok((node.name, false, PyBytes::new(py, &node.value[..]).into_py_any(py)?)),
                 Node::File(node) => Ok((
                     node.name.clone(),
                     true,
-                    Py::new(py, FilePartReader::new(node)?)?.into_py(py),
+                    Py::new(py, FilePartReader::new(node)?)?.into_py_any(py)?,
                 )),
             };
         }
