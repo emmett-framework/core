@@ -5,6 +5,7 @@ use std::{
     fs::File,
     io::{BufRead, BufReader, Read},
     path::PathBuf,
+    sync::Mutex,
 };
 use textnonce::TextNonce;
 
@@ -104,10 +105,10 @@ impl Drop for FilePart {
     }
 }
 
-#[pyclass(module = "emmett_core._emmett_core")]
+#[pyclass(module = "emmett_core._emmett_core", frozen)]
 pub(super) struct FilePartReader {
     inner: FilePart,
-    reader: BufReader<File>,
+    reader: Mutex<BufReader<File>>,
     size: u64,
 }
 
@@ -116,17 +117,19 @@ impl FilePartReader {
         drop(inner.file.take().expect("uninitialized file part"));
         let file = File::open(inner.path.clone()).map_err::<anyhow::Error, _>(|_| error_io!())?;
         let size = file.metadata().unwrap().len();
-        let reader = BufReader::with_capacity(4096, file);
+        let reader = Mutex::new(BufReader::with_capacity(4096, file));
         Ok(Self { inner, reader, size })
     }
 
     #[inline]
-    fn read_chunk(&mut self, size: usize) -> Result<Vec<u8>> {
+    fn read_chunk(&self, size: usize) -> Result<Vec<u8>> {
+        let mut guard = self.reader.lock().unwrap();
         let mut buf = vec![0; size];
         let mut len_read = 0;
+
         while len_read < size {
-            self.reader.fill_buf()?;
-            let rsize = self.reader.read(&mut buf[len_read..])?;
+            guard.fill_buf()?;
+            let rsize = guard.read(&mut buf[len_read..])?;
             if rsize == 0 {
                 break;
             }
@@ -138,10 +141,12 @@ impl FilePartReader {
         Ok(buf)
     }
 
-    fn read_all(&mut self) -> Result<Vec<u8>> {
-        self.reader.fill_buf()?;
+    fn read_all(&self) -> Result<Vec<u8>> {
+        let mut guard = self.reader.lock().unwrap();
+
+        guard.fill_buf()?;
         let mut buf = Vec::new();
-        self.reader.read_to_end(&mut buf)?;
+        guard.read_to_end(&mut buf)?;
         Ok(buf)
     }
 }
@@ -167,23 +172,23 @@ impl FilePartReader {
     }
 
     #[pyo3(signature = (size = None))]
-    fn read<'p>(&mut self, py: Python<'p>, size: Option<usize>) -> Result<Bound<'p, PyBytes>> {
+    fn read<'p>(&self, py: Python<'p>, size: Option<usize>) -> Result<Bound<'p, PyBytes>> {
         let buf = match size {
             Some(size) => self.read_chunk(size),
             None => self.read_all(),
         }?;
-        Ok(PyBytes::new_bound(py, &buf[..]))
+        Ok(PyBytes::new(py, &buf[..]))
     }
 
     fn __iter__(pyself: PyRef<Self>) -> PyRef<Self> {
         pyself
     }
 
-    fn __next__<'p>(&mut self, py: Python<'p>) -> Result<Bound<'p, PyBytes>> {
+    fn __next__<'p>(&self, py: Python<'p>) -> Result<Bound<'p, PyBytes>> {
         let buf = self.read_chunk(4096)?;
         if buf.is_empty() {
             return Err(PyStopIteration::new_err(py.None()).into());
         }
-        Ok(PyBytes::new_bound(py, &buf[..]))
+        Ok(PyBytes::new(py, &buf[..]))
     }
 }
