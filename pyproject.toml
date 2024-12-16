@@ -108,3 +108,6 @@ known-first-party = ['emmett_core', 'tests']
 
 [tool.pytest.ini_options]
 asyncio_mode = 'auto'
+
+[tool.uv]
+package = false

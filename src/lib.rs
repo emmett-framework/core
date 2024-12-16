@@ -15,7 +15,7 @@ pub fn get_lib_version() -> &'static str {
     })
 }
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 fn _emmett_core(py: Python, module: &Bound<PyModule>) -> PyResult<()> {
     module.add("__version__", get_lib_version())?;
 
