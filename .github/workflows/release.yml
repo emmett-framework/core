@@ -99,6 +99,9 @@ jobs:
           #   platform: linux
           - os: windows-latest
             platform: windows
+        exclude:
+          - os: windows-latest
+            interpreter: 3.13t
 
     runs-on: ${{ matrix.os }}
     env:
