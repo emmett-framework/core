@@ -39,12 +39,12 @@ cfb-mode = "=0.8"
 ctr = "=0.9"
 encoding = "=0.2"
 http = "=1.2"
-httparse = "=1.9"
+httparse = "=1.10"
 mime = "=0.3"
 pyo3 = { version = "=0.23", features = ["anyhow", "extension-module", "generate-import-lib"] }
 regex = "=1.11"
 ring = "=0.17"
-tempfile = "=3.14"
+tempfile = "=3.17"
 textnonce = "=1.0"
 
 [profile.release]
