@@ -34,7 +34,7 @@ jobs:
       run: |
         uv python install ${{ env.UV_PYTHON }}
         uv venv .venv
-        uv sync --group build,test
+        uv sync --group build --group test
         uv run --no-sync maturin develop --uv
     - name: Test
       run: |
@@ -65,7 +65,7 @@ jobs:
       run: |
         uv python install ${{ env.UV_PYTHON }}
         uv venv .venv
-        uv sync --group build,test
+        uv sync --group build --group test
         uv run --no-sync maturin develop --uv
     - name: Test
       run: |
@@ -96,7 +96,7 @@ jobs:
       run: |
         uv python install ${{ env.UV_PYTHON }}
         uv venv .venv
-        uv sync --group build,test
+        uv sync --group build --group test
         uv run --no-sync maturin develop --uv
     - name: Test
       run: |
