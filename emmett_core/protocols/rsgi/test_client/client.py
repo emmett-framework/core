@@ -43,12 +43,16 @@ class ClientContext:
 class ClientHTTPHandlerMixin:
     _client_ctx_cls = ClientContext
 
+    def __call__(self, scope, protocol):
+        return self.handle_request(scope, protocol)
+
     async def dynamic_handler(self, scope, protocol, path):
         request = self.__class__.wapper_cls(
             scope,
             path,
             protocol,
             max_content_length=self.app.config.request_max_content_length,
+            max_multipart_size=self.app.config.request_multipart_max_size,
             body_timeout=self.app.config.request_body_timeout,
         )
         response = self.response_cls()
