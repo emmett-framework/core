@@ -139,7 +139,7 @@ class EmmettTestClient:
                 allowed = cur_name == real_name
 
         if not allowed:
-            raise RuntimeError("%r does not support redirect to " "external targets" % self.__class__)
+            raise RuntimeError("%r does not support redirect to external targets" % self.__class__)
 
         status_code = response["status"]
         if status_code == 307:

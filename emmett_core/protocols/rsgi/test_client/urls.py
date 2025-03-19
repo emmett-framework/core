@@ -6,7 +6,7 @@ from ....datastructures import sdict
 from ._shortcuts import to_unicode
 
 
-_always_safe = b"abcdefghijklmnopqrstuvwxyz" b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-+"
+_always_safe = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-+"
 _hexdigits = "0123456789ABCDEFabcdef"
 _hextobyte = {(a + b).encode(): int(a + b, 16) for a in _hexdigits for b in _hexdigits}
 

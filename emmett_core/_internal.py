@@ -107,7 +107,7 @@ def get_app_module(module_name: str, raise_on_failure: bool = True) -> Optional[
     except ImportError:
         if sys.exc_info()[-1].tb_next:
             raise RuntimeError(
-                f"While importing '{module_name}', an ImportError was raised:" f"\n\n{traceback.format_exc()}"
+                f"While importing '{module_name}', an ImportError was raised:\n\n{traceback.format_exc()}"
             )
         elif raise_on_failure:
             raise RuntimeError(f"Could not import '{module_name}'.")
@@ -166,9 +166,7 @@ def warn_of_deprecation(old_name, new_name, prefix=None, stack=2):
     msg = "%(old)s is deprecated, use %(new)s instead."
     if prefix:
         msg = "%(prefix)s." + msg
-    warnings.warn(  # noqa: B028
-        msg % {"old": old_name, "new": new_name, "prefix": prefix}, RemovedInNextVersionWarning, stack
-    )
+    warnings.warn(msg % {"old": old_name, "new": new_name, "prefix": prefix}, RemovedInNextVersionWarning, stack)
 
 
 #: app init helpers

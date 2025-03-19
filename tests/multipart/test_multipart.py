@@ -306,7 +306,7 @@ def test_missing_name_parameter_on_content_disposition(multipart_client):
         "/",
         data=(
             # data
-            b"--a7f7ac8d4e2e437c877bb7b8d7cc549c\r\n" b'Content-Disposition: form-data; ="field0"\r\n\r\n' b"value0\r\n"
+            b'--a7f7ac8d4e2e437c877bb7b8d7cc549c\r\nContent-Disposition: form-data; ="field0"\r\n\r\nvalue0\r\n'
         ),
         headers=[("content-type", "multipart/form-data; boundary=a7f7ac8d4e2e437c877bb7b8d7cc549c")],
     )

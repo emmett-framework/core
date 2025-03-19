@@ -52,7 +52,7 @@ class UrlBuilder:
         args = self._args + args
         self.add_language(args, language)
         self.add_prefix(args)
-        return f"{self.path_prefix(scheme, host)}{self.args(args)}" f"{self.params(params)}"
+        return f"{self.path_prefix(scheme, host)}{self.args(args)}{self.params(params)}"
 
 
 class HttpUrlBuilder(UrlBuilder):
@@ -78,7 +78,7 @@ class HttpUrlBuilder(UrlBuilder):
         self.add_static_versioning(args)
         self.add_language(args, language)
         self.add_prefix(args)
-        return f"{self.path_prefix(scheme, host)}{self.args(args)}" f"{self.params(params)}{self.anchor(anchor)}"
+        return f"{self.path_prefix(scheme, host)}{self.args(args)}{self.params(params)}{self.anchor(anchor)}"
 
 
 class Url:
@@ -104,7 +104,7 @@ class Url:
             # urls like '.function' refers to main app module
             elif path.startswith("."):
                 if not hasattr(self.current, "request"):
-                    raise RuntimeError(f'cannot build url("{path}",...) ' "without current request")
+                    raise RuntimeError(f'cannot build url("{path}",...) without current request')
                 module = self.current.request.name.rsplit(".", 1)[0]
                 path = module + path
             # find correct route
@@ -154,7 +154,7 @@ class Url:
         if scheme:
             if host is None:
                 if not hasattr(self.current, "request"):
-                    raise RuntimeError(f'cannot build url("{path}",...) ' "without current request")
+                    raise RuntimeError(f'cannot build url("{path}",...) without current request')
                 host = self.current.request.host
         # add signature
         if sign:
@@ -175,7 +175,7 @@ class Url:
             # urls like '.function' refers to main app module
             elif path.startswith("."):
                 if not hasattr(self.current, "request"):
-                    raise RuntimeError(f'cannot build url("{path}",...) ' "without current request")
+                    raise RuntimeError(f'cannot build url("{path}",...) without current request')
                 module = self.current.request.name.rsplit(".", 1)[0]
                 path = module + path
             # find correct route
@@ -221,7 +221,7 @@ class Url:
         if scheme:
             if host is None:
                 if not hasattr(self.current, "request"):
-                    raise RuntimeError(f'cannot build url("{path}",...) ' "without current request")
+                    raise RuntimeError(f'cannot build url("{path}",...) without current request')
                 host = self.current.request.host
         return builder.url(scheme, host, lang, args, params)
 
