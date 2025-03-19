@@ -132,9 +132,14 @@ class HTTPHandler(RequestHandler):
         scope["emt.path"] = scope["path"] or "/"
         try:
             http = await self.pre_handler(scope, receive, send)
-            await asyncio.wait_for(http.asgi(scope, send), self.app.config.response_timeout)
         except RequestCancelled:
             return
+        coro = http.asgi(scope, send)
+        if self.app.config.response_timeout is None:
+            await coro
+            return
+        try:
+            await asyncio.wait_for(coro, self.app.config.response_timeout)
         except asyncio.TimeoutError:
             self.app.log.warn(f"Timeout sending response: ({scope['emt.path']})")
 

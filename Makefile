@@ -4,7 +4,8 @@ pysources = emmett_core tests
 .PHONY: build-dev
 build-dev:
 	@rm -f emmett_core/*.so
-	maturin develop --extras lint,test
+	uv sync --group all
+	maturin develop --uv --extras all,granian
 
 .PHONY: format
 format:

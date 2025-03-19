@@ -9,7 +9,7 @@ from ...ctx import RequestContext, WSContext
 from ...http.response import HTTPFileResponse, HTTPResponse, HTTPStringResponse
 from ...http.wrappers.response import Response
 from ...utils import cachedprop
-from .helpers import WSTransport
+from .helpers import WSTransport, noop_response
 from .wrappers import Request, Websocket
 
 
@@ -56,12 +56,25 @@ class HTTPHandler(RequestHandler):
         self.pre_handler = self._prefix_handler if self.router._prefix_main else self.static_handler
 
     async def __call__(self, scope, protocol):
-        try:
-            http = await self.pre_handler(scope, protocol, scope.path)
-        except asyncio.TimeoutError:
-            self.app.log.warn(f"Timeout sending response: ({scope.path})")
+        task_transport = asyncio.create_task(self.handle_disconnect(protocol))
+        task_request = asyncio.create_task(self.handle_request(scope, protocol))
+        _, pending = await asyncio.wait([task_request, task_transport], return_when=asyncio.FIRST_COMPLETED)
+        for task in pending:
+            task.cancel()
+
+    async def handle_disconnect(self, protocol):
+        await protocol.client_disconnect()
+
+    async def handle_request(self, scope, protocol):
+        http = await self.pre_handler(scope, protocol, scope.path)
         if coro := http.rsgi(protocol):
-            await coro
+            if self.app.config.response_timeout is None:
+                await coro
+                return
+            try:
+                await asyncio.wait_for(coro, self.app.config.response_timeout)
+            except asyncio.TimeoutError:
+                self.app.log.warn(f"Timeout sending response: ({scope.path})")
 
     @cachedprop
     def error_handler(self) -> Callable[[], Awaitable[str]]:
@@ -142,6 +155,8 @@ class HTTPHandler(RequestHandler):
                 http = HTTPStringResponse(
                     http.status_code, await error_handler(), headers=response.headers, cookies=response.cookies
                 )
+        except asyncio.CancelledError:
+            http = noop_response
         except Exception:
             self.app.log.exception("Application exception:")
             http = HTTPStringResponse(500, await self.error_handler(), headers=response.headers)

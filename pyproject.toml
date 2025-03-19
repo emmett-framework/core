@@ -35,24 +35,35 @@ requires-python = '>=3.9'
 dependencies = []
 
 [project.optional-dependencies]
-granian = ['granian~=1.7']
+granian = ['granian~=2.1']
 orjson = ['orjson~=3.10']
 rapidjson = ['python-rapidjson~=1.20']
-reload = ['granian[reload]~=1.7']
-
-lint = ['ruff~=0.5.0']
-test = [
-    'pytest~=8.3.2',
-    'pytest-asyncio~=0.24.0',
-]
+reload = ['granian[reload]~=2.1']
 
 all = ['emmett-core[rapidjson,reload]']
-dev = ['emmett-core[all,lint,test]']
 
 [project.urls]
 Homepage = 'https://emmett.sh'
 Funding = 'https://github.com/sponsors/gi0baro'
 Source = 'https://github.com/emmett-framework/core'
+
+[dependency-groups]
+build = [
+    'maturin~=1.8',
+]
+lint = [
+    'ruff~=0.9',
+]
+test = [
+    'pytest~=8.3.2',
+    'pytest-asyncio~=0.24.0',
+]
+
+all = [
+    { include-group = 'build' },
+    { include-group = 'lint' },
+    { include-group = 'test' },
+]
 
 [build-system]
 requires = ['maturin>=1.1.0,<2']

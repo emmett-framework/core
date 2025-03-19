@@ -46,7 +46,7 @@ class RequestCloseDispatcher(RequestDispatcher):
         try:
             rv = self.response_builder(await self.f(**reqargs), response)
         finally:
-            await self._parallel_flow(self.flow_close)
+            await asyncio.shield(self._parallel_flow(self.flow_close))
         return rv
 
 
@@ -58,7 +58,7 @@ class RequestFlowDispatcher(RequestDispatcher):
         try:
             rv = self.response_builder(await self.f(**reqargs), response)
         finally:
-            await self._parallel_flow(self.flow_close)
+            await asyncio.shield(self._parallel_flow(self.flow_close))
         return rv
 
 

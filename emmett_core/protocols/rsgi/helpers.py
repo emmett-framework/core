@@ -28,6 +28,11 @@ class BodyWrapper:
             yield chunk
 
 
+class NoopResponse:
+    def rsgi(self, protocol):
+        return
+
+
 class WSTransport:
     __slots__ = ["protocol", "transport", "accepted", "interrupted", "input", "status", "noop"]
 
@@ -47,3 +52,6 @@ class WSTransport:
     @property
     def receive(self):
         return self.input.get
+
+
+noop_response = NoopResponse()
