@@ -15,9 +15,6 @@ jobs:
         target: [x86_64, aarch64]
         manylinux: [auto]
         include:
-          # - os: ubuntu
-          #   platform: linux
-          # FIXME: for some unknown reasons PGO builds are failing on Linux
           - os: ubuntu
             platform: linux
             target: x86_64
@@ -70,9 +67,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # FIXME: for some unknown reasons PGO builds are failing on Linux
         os: [ubuntu-latest, macos-13, macos-14, windows-latest]
-        # os: [macos-13, macos-14, windows-latest]
         manylinux: [auto]
         interpreter: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"]
         include:
