@@ -82,11 +82,12 @@ class Route:
 
 
 class HTTPRoute(Route):
-    __slots__ = ["methods", "dispatchers"]
+    __slots__ = ["methods", "pipeline_flow_stream", "dispatchers"]
 
     def __init__(self, rule, path, idx):
         super().__init__(rule, path, idx)
         self.methods = tuple(method.upper() for method in rule.methods)
+        self.pipeline_flow_stream = rule.pipeline_flow_stream
         dispatchers = {
             "base": (RequestDispatcher, CacheDispatcher),
             "open": (RequestOpenDispatcher, CacheOpenDispatcher),

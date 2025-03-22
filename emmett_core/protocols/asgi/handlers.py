@@ -11,11 +11,10 @@ from typing import Any, Awaitable, Callable, Optional, Tuple, Union
 from ...ctx import RequestContext, WSContext
 from ...extensions import Signals
 from ...http.response import HTTPFileResponse, HTTPResponse, HTTPStringResponse
-from ...http.wrappers.response import Response
 from ...utils import cachedprop
 from .helpers import RequestCancelled
 from .typing import Event, EventHandler, EventLooper, Receive, Scope, Send
-from .wrappers import Request, Websocket
+from .wrappers import Request, Response, Websocket
 
 
 REGEX_STATIC = re.compile(r"^/static/(?P<m>__[\w\-\.]+__/)?(?P<v>_\d+\.\d+\.\d+/)?(?P<f>.*?)$")
@@ -210,7 +209,7 @@ class HTTPHandler(RequestHandler):
             max_multipart_size=self.app.config.request_multipart_max_size,
             body_timeout=self.app.config.request_body_timeout,
         )
-        response = self.response_cls()
+        response = self.response_cls(send)
         ctx = RequestContext(self.app, request, response)
         ctx_token = self.current._init_(ctx)
         try:

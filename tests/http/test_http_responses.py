@@ -11,13 +11,18 @@ from emmett_core.http.response import (
     HTTPResponse,
     HTTPStringResponse,
 )
-from emmett_core.http.wrappers.response import Response
+from emmett_core.http.wrappers.response import Response as _Response
+
+
+class Response(_Response):
+    async def stream(self, target, item_wrapper=None):
+        raise NotImplementedError
 
 
 @pytest.fixture(scope="function")
 def current():
     rv = Current()
-    rv.response = Response()
+    rv.response = Response(None)
     return rv
 
 
@@ -49,7 +54,7 @@ def test_http_string_empty():
 
     assert http.encoded_body == b""
     assert http.status_code == 200
-    assert list(http.headers) == [(b"content-type", b"text/plain")]
+    assert list(http.rsgi_headers()) == [("content-type", "text/plain")]
 
 
 def test_http_bytes_empty():
@@ -57,7 +62,7 @@ def test_http_bytes_empty():
 
     assert http.body == b""
     assert http.status_code == 200
-    assert list(http.headers) == [(b"content-type", b"text/plain")]
+    assert list(http.rsgi_headers()) == [("content-type", "text/plain")]
 
 
 def test_http_string():
@@ -67,7 +72,7 @@ def test_http_string():
 
     assert http.encoded_body == b"Hello World"
     assert http.status_code == 200
-    assert list(http.headers) == [(b"x-test", b"Hello Header"), (b"set-cookie", b"hello cookie")]
+    assert list(http.rsgi_headers()) == [("x-test", "Hello Header"), ("set-cookie", "hello cookie")]
 
 
 @pytest.mark.asyncio
@@ -80,7 +85,7 @@ async def test_http_iter(rsgi_proto):
     rsgi_proto.data.seek(0)
 
     assert rsgi_proto.code == 200
-    assert not list(http.headers)
+    assert not list(http.rsgi_headers())
     assert rsgi_proto.data.read() == b"test"
 
 
@@ -94,7 +99,7 @@ async def test_http_aiter(rsgi_proto):
     rsgi_proto.data.seek(0)
 
     assert rsgi_proto.code == 200
-    assert not list(http.headers)
+    assert not list(http.rsgi_headers())
     assert rsgi_proto.data.read() == b"test"
 
 
@@ -104,4 +109,4 @@ def test_redirect(current):
     except HTTPResponse as http_redirect:
         assert current.response.status == 302
         assert http_redirect.status_code == 302
-        assert list(http_redirect.headers) == [(b"location", b"/redirect")]
+        assert list(http_redirect.rsgi_headers()) == [("location", "/redirect")]

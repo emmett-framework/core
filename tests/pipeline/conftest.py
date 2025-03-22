@@ -63,7 +63,9 @@ def http_ctx_builder(current):
     @contextmanager
     def ctx_builder(path):
         scope = ScopeBuilder(path=path).get_data()[0]
-        token = current._init_(RequestContext(current.app, Request(scope, scope.path, None), sdict()))
+        token = current._init_(
+            RequestContext(current.app, Request(scope, scope.path, None), sdict(_bind_flow=lambda v: None))
+        )
         yield sdict(ctx=current, wrapper=current.request)
         current._close_(token)
 

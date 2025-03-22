@@ -67,3 +67,10 @@ class IngressWrapper(Wrapper, metaclass=ABCMeta):
     @property
     @abstractmethod
     def query_params(self) -> sdict[str, Union[str, List[str]]]: ...
+
+
+class EgressWrapper(Wrapper, metaclass=ABCMeta):
+    __slots__ = ["_proto"]
+
+    def __init__(self, proto):
+        self._proto = proto

@@ -3,12 +3,13 @@ from typing import Any, Callable, Dict, Iterator, List, Mapping, Optional, Tuple
 from urllib.parse import parse_qs
 
 from ...datastructures import sdict
-from ...http.response import HTTPBytesResponse
+from ...http.response import HTTPBytesResponse, HTTPResponse
 from ...http.wrappers.helpers import regex_client
 from ...http.wrappers.request import Request as _Request
+from ...http.wrappers.response import Response as _Response
 from ...http.wrappers.websocket import Websocket as _Websocket
 from ...utils import cachedprop
-from .helpers import BodyWrapper
+from .helpers import BodyWrapper, ResponseStream
 from .typing import Receive, Scope, Send
 
 
@@ -132,6 +133,11 @@ class Request(ASGIIngressMixin, _Request):
                 ],
             }
         )
+
+
+class Response(_Response):
+    async def stream(self, target, item_wrapper=None) -> HTTPResponse:
+        return await ResponseStream(self, target, item_wrapper=item_wrapper)
 
 
 class Websocket(ASGIIngressMixin, _Websocket):

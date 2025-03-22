@@ -3,12 +3,13 @@ from typing import Any, Dict, List, Optional, Union
 from urllib.parse import parse_qs
 
 from ...datastructures import sdict
-from ...http.response import HTTPBytesResponse
+from ...http.response import HTTPBytesResponse, HTTPResponse
 from ...http.wrappers.helpers import regex_client
 from ...http.wrappers.request import Request as _Request
+from ...http.wrappers.response import Response as _Response
 from ...http.wrappers.websocket import Websocket as _Websocket
 from ...utils import cachedprop
-from .helpers import BodyWrapper
+from .helpers import BodyWrapper, ResponseStream
 
 
 class RSGIIngressMixin:
@@ -80,6 +81,11 @@ class Request(RSGIIngressMixin, _Request):
 
     async def push_promise(self, path: str):
         raise NotImplementedError("RSGI protocol doesn't support HTTP2 push.")
+
+
+class Response(_Response):
+    async def stream(self, target, item_wrapper=None) -> HTTPResponse:
+        return await ResponseStream(self, target, item_wrapper=item_wrapper)
 
 
 class Websocket(RSGIIngressMixin, _Websocket):

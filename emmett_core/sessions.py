@@ -91,6 +91,10 @@ class SessionPipe(Pipe):
         for key, val in self.cookie_data.items():
             cookie_data[key] = val
 
+    def _close_session(self):
+        expiration = self.current.session._expiration or self.expire
+        self._pack_session(expiration)
+
     def _session_cookie_data(self) -> str:
         raise NotImplementedError
 
@@ -107,8 +111,13 @@ class SessionPipe(Pipe):
             self.current.session = self._new_session()
 
     async def close_request(self):
-        expiration = self.current.session._expiration or self.expire
-        self._pack_session(expiration)
+        if getattr(self.current.response, "_done", False):
+            return
+        self._close_session()
+
+    def on_stream(self):
+        self.current.response._done = True
+        self._close_session()
 
     def clear(self):
         pass
@@ -192,10 +201,7 @@ class BackendStoredSessionPipe(SessionPipe):
     def _save_session(self, expiration: int):
         pass
 
-    def _load(self, sid: str):
-        return None
-
-    async def close_request(self):
+    def _close_session(self):
         if not self.current.session:
             self._delete_session()
             if self.current.session._modified:
@@ -206,6 +212,9 @@ class BackendStoredSessionPipe(SessionPipe):
         expiration = self.current.session._expiration or self.expire
         self._save_session(expiration)
         self._pack_session(expiration)
+
+    def _load(self, sid: str):
+        return None
 
 
 class FileSessionPipe(BackendStoredSessionPipe):
