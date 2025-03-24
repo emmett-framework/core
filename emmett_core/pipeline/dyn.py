@@ -1,5 +1,8 @@
+from typing import Any, Dict
+
+from ..http.wrappers.response import ServerSentEvent
 from ..routing.router import RouterMixin
-from .extras import JSONPipe, RequirePipe
+from .extras import JSONPipe, RequirePipe, SSEPipe, StreamPipe
 
 
 class PipeBuilder(object):
@@ -49,3 +52,29 @@ class service(PipeBuilder):
 
     def build_pipe(self):
         return self._inner_builder(self.procedure)
+
+
+class stream(PipeBuilder):
+    _pipe_cls = StreamPipe
+
+    def __init__(
+        self,
+        status: int = 200,
+        headers: Dict[str, str] = {},
+        cookies: Dict[str, Any] = {},
+    ):
+        self.response_status = status
+        self.response_headers = headers
+        self.response_cookies = cookies
+
+    def build_pipe(self):
+        return self.__class__._pipe_cls(
+            status=self.response_status,
+            headers=self.response_headers,
+            cookies=self.response_cookies,
+        )
+
+
+class sse(stream):
+    _pipe_cls = SSEPipe
+    Event = ServerSentEvent

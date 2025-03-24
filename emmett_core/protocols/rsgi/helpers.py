@@ -1,7 +1,8 @@
 import asyncio
 from typing import AsyncGenerator
 
-from ...http.response import HTTPBytesResponse
+from ...http.response import HTTPBytesResponse, HTTPResponse
+from ...http.wrappers.response import ResponseStream as _ResponseStream
 
 
 class BodyWrapper:
@@ -26,6 +27,23 @@ class BodyWrapper:
     async def __aiter__(self) -> AsyncGenerator[bytes, None]:
         async for chunk in self.proto:
             yield chunk
+
+
+class ResponseStream(_ResponseStream):
+    __slots__ = []
+
+    async def __call__(self):
+        for method in self.response._flow_stream:
+            method()
+        self._proto = self._proto.response_stream(self.response.status, list(HTTPResponse.rsgi_headers(self)))
+        async for item in self._target:
+            await self.send(self._item_wrapper(item))
+        return noop_response
+
+    def send(self, data):
+        if isinstance(data, str):
+            return self._proto.send_str(data)
+        return self._proto.send_bytes(data)
 
 
 class NoopResponse:

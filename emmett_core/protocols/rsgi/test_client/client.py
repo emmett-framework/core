@@ -6,11 +6,10 @@ from io import BytesIO
 
 from ....ctx import Current, RequestContext
 from ....http.response import HTTPResponse, HTTPStringResponse
-from ....http.wrappers.response import Response
 from ....parsers import Parsers
 from ....utils import cachedprop
 from ..handlers import HTTPHandler
-from ..wrappers import Request
+from ..wrappers import Request, Response
 from .helpers import Headers, TestCookieJar
 from .scope import ScopeBuilder
 from .urls import get_host, url_parse, url_unparse
@@ -18,7 +17,7 @@ from .urls import get_host, url_parse, url_unparse
 
 class ClientContextResponse(Response):
     def __init__(self, original_response: Response):
-        super().__init__()
+        super().__init__(original_response._proto)
         self.status = original_response.status
         self.headers._data.update(original_response.headers._data)
         self.cookies.update(original_response.cookies.copy())
@@ -55,7 +54,7 @@ class ClientHTTPHandlerMixin:
             max_multipart_size=self.app.config.request_multipart_max_size,
             body_timeout=self.app.config.request_body_timeout,
         )
-        response = self.response_cls()
+        response = self.response_cls(protocol)
         ctx = RequestContext(self.app, request, response)
         ctx_token = self.current._init_(ctx)
         try:

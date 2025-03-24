@@ -1,7 +1,8 @@
 import asyncio
 from typing import AsyncGenerator
 
-from ...http.response import HTTPBytesResponse
+from ...http.response import HTTPBytesResponse, HTTPResponse
+from ...http.wrappers.response import ResponseStream as _ResponseStream
 
 
 class RequestCancelled(Exception): ...
@@ -46,3 +47,35 @@ class BodyWrapper:
         async for chunk in self:
             self._append_data(chunk)
         return bytes(self._data)
+
+
+class ResponseStream(_ResponseStream):
+    __slots__ = []
+
+    async def __call__(self):
+        for method in self.response._flow_stream:
+            method()
+        await self._proto(
+            {
+                "type": "http.response.start",
+                "status": self.response.status,
+                "headers": list(HTTPResponse.asgi_headers(self)),
+            }
+        )
+        async for item in self._target:
+            await self.send(self._item_wrapper(item))
+        await self._proto({"type": "http.response.body", "body": b"", "more_body": False})
+        return noop_response
+
+    def send(self, data):
+        if isinstance(data, str):
+            data = data.encode("utf8")
+        return self._proto({"type": "http.response.body", "body": data, "more_body": True})
+
+
+class NoopResponse:
+    async def asgi(self, scope, send):
+        return
+
+
+noop_response = NoopResponse()

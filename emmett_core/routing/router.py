@@ -20,7 +20,7 @@ from .response import (
 from .rules import HTTPRoutingRule, RoutingRule, WebsocketRoutingRule
 
 
-RouteRecReq = namedtuple("RouteRecReq", ["name", "dispatch"])
+RouteRecReq = namedtuple("RouteRecReq", ["name", "dispatch", "flow_stream"])
 RouteRecWS = namedtuple("RouteRecWS", ["name", "dispatch", "flow_recv", "flow_send"])
 
 
@@ -185,7 +185,11 @@ class HTTPRouter(_HTTPRouter):
         for method in route.methods:
             if route.is_static:
                 self.add_static_route(
-                    self._routing_rec_builder(name=route.name, dispatch=route.dispatchers[method].dispatch),
+                    self._routing_rec_builder(
+                        name=route.name,
+                        dispatch=route.dispatchers[method].dispatch,
+                        flow_stream=route.pipeline_flow_stream,
+                    ),
                     route.path,
                     method,
                     route.hostname,
@@ -193,7 +197,11 @@ class HTTPRouter(_HTTPRouter):
                 )
             else:
                 self.add_re_route(
-                    self._routing_rec_builder(name=route.name, dispatch=route.dispatchers[method].dispatch),
+                    self._routing_rec_builder(
+                        name=route.name,
+                        dispatch=route.dispatchers[method].dispatch,
+                        flow_stream=route.pipeline_flow_stream,
+                    ),
                     route.build_regex(route.path),
                     route._argtypes,
                     method,
@@ -227,6 +235,7 @@ class HTTPRouter(_HTTPRouter):
         if not match:
             raise HTTPBytesResponse(404, body=b"Resource not found")
         request.name = match.name
+        response._bind_flow(match.flow_stream)
         return await match.dispatch(reqargs, response)
 
 

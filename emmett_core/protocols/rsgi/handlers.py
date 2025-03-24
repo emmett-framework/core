@@ -7,10 +7,9 @@ from typing import Awaitable, Callable, Optional, Tuple
 
 from ...ctx import RequestContext, WSContext
 from ...http.response import HTTPFileResponse, HTTPResponse, HTTPStringResponse
-from ...http.wrappers.response import Response
 from ...utils import cachedprop
 from .helpers import WSTransport, noop_response
-from .wrappers import Request, Websocket
+from .wrappers import Request, Response, Websocket
 
 
 REGEX_STATIC = re.compile(r"^/static/(?P<m>__[\w\-\.]+__/)?(?P<v>_\d+\.\d+\.\d+/)?(?P<f>.*?)$")
@@ -142,7 +141,7 @@ class HTTPHandler(RequestHandler):
             max_multipart_size=self.app.config.request_multipart_max_size,
             body_timeout=self.app.config.request_body_timeout,
         )
-        response = self.response_cls()
+        response = self.response_cls(protocol)
         ctx = RequestContext(self.app, request, response)
         ctx_token = self.current._init_(ctx)
         try:

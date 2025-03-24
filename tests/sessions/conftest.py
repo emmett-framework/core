@@ -2,10 +2,15 @@ import pytest
 
 from emmett_core.app import App as _App
 from emmett_core.ctx import Current, RequestContext
-from emmett_core.http.wrappers.response import Response
+from emmett_core.http.wrappers.response import Response as _Response
 from emmett_core.protocols.rsgi.test_client.scope import ScopeBuilder
 from emmett_core.protocols.rsgi.wrappers import Request
 from emmett_core.routing.router import HTTPRouter, WebsocketRouter
+
+
+class Response(_Response):
+    async def stream(self, target, item_wrapper=None):
+        raise NotImplementedError
 
 
 class App(_App):
@@ -39,6 +44,6 @@ def app(current):
 @pytest.fixture(scope="function")
 def http_ctx(current, app):
     scope = ScopeBuilder(path="/").get_data()[0]
-    token = current._init_(RequestContext(app, Request(scope, scope.path, None), Response()))
+    token = current._init_(RequestContext(app, Request(scope, scope.path, None), Response(None)))
     yield current
     current._close_(token)

@@ -50,6 +50,7 @@ class HTTPRoutingRule(RoutingRule):
         "paths",
         "pipeline_flow_close",
         "pipeline_flow_open",
+        "pipeline_flow_stream",
         "pipeline",
         "prefix",
         "response_builder",
@@ -120,6 +121,7 @@ class HTTPRoutingRule(RoutingRule):
         wrapped_f = pipeline_obj(f)
         self.pipeline_flow_open = pipeline_obj._flow_open()
         self.pipeline_flow_close = pipeline_obj._flow_close()
+        self.pipeline_flow_stream = pipeline_obj._flow_stream()
         self.f = wrapped_f
         output_type = pipeline_obj._output_type() or self.output_type
         self.response_builder, self.head_builder = self._make_builders(output_type)

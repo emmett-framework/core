@@ -23,14 +23,12 @@ class HTTPResponse(Exception):
         self._headers: Dict[str, str] = headers
         self._cookies: Dict[str, Any] = cookies
 
-    @property
-    def headers(self) -> Generator[Tuple[bytes, bytes], None, None]:
+    def asgi_headers(self) -> Generator[Tuple[bytes, bytes], None, None]:
         for key, val in self._headers.items():
             yield key.encode("latin-1"), val.encode("latin-1")
         for cookie in self._cookies.values():
             yield b"set-cookie", str(cookie)[12:].encode("latin-1")
 
-    @property
     def rsgi_headers(self) -> Generator[Tuple[str, str], None, None]:
         for key, val in self._headers.items():
             yield key, val
@@ -38,7 +36,7 @@ class HTTPResponse(Exception):
             yield "set-cookie", str(cookie)[12:]
 
     async def _send_headers(self, send):
-        await send({"type": "http.response.start", "status": self.status_code, "headers": list(self.headers)})
+        await send({"type": "http.response.start", "status": self.status_code, "headers": list(self.asgi_headers())})
 
     async def _send_body(self, send):
         await send({"type": "http.response.body"})
@@ -48,7 +46,7 @@ class HTTPResponse(Exception):
         await self._send_body(send)
 
     def rsgi(self, protocol):
-        protocol.response_empty(self.status_code, list(self.rsgi_headers))
+        protocol.response_empty(self.status_code, list(self.rsgi_headers()))
 
 
 class HTTPBytesResponse(HTTPResponse):
@@ -66,7 +64,7 @@ class HTTPBytesResponse(HTTPResponse):
         await send({"type": "http.response.body", "body": self.body, "more_body": False})
 
     def rsgi(self, protocol):
-        protocol.response_bytes(self.status_code, list(self.rsgi_headers), self.body)
+        protocol.response_bytes(self.status_code, list(self.rsgi_headers()), self.body)
 
 
 class HTTPStringResponse(HTTPResponse):
@@ -88,7 +86,7 @@ class HTTPStringResponse(HTTPResponse):
         await send({"type": "http.response.body", "body": self.encoded_body, "more_body": False})
 
     def rsgi(self, protocol):
-        protocol.response_str(self.status_code, list(self.rsgi_headers), self.body)
+        protocol.response_str(self.status_code, list(self.rsgi_headers()), self.body)
 
 
 class HTTPRedirectResponse(HTTPResponse):
@@ -166,7 +164,7 @@ class HTTPFileResponse(HTTPResponse):
                 return HTTPResponse(403).rsgi(protocol)
             return HTTPResponse(404).rsgi(protocol)
 
-        protocol.response_file(self.status_code, list(self.rsgi_headers), self.file_path)
+        protocol.response_file(self.status_code, list(self.rsgi_headers()), self.file_path)
 
 
 class HTTPIOResponse(HTTPResponse):
@@ -205,7 +203,7 @@ class HTTPIOResponse(HTTPResponse):
             )
 
     def rsgi(self, protocol):
-        protocol.response_bytes(self.status_code, list(self.rsgi_headers), self.io_stream.read())
+        protocol.response_bytes(self.status_code, list(self.rsgi_headers()), self.io_stream.read())
 
 
 class HTTPIterResponse(HTTPResponse):
@@ -221,7 +219,7 @@ class HTTPIterResponse(HTTPResponse):
         await send({"type": "http.response.body", "body": b"", "more_body": False})
 
     async def rsgi(self, protocol):
-        trx = protocol.response_stream(self.status_code, list(self.rsgi_headers))
+        trx = protocol.response_stream(self.status_code, list(self.rsgi_headers()))
         for chunk in self.iter:
             await trx.send_bytes(chunk)
 
@@ -243,6 +241,6 @@ class HTTPAsyncIterResponse(HTTPResponse):
         await send({"type": "http.response.body", "body": b"", "more_body": False})
 
     async def rsgi(self, protocol):
-        trx = protocol.response_stream(self.status_code, list(self.rsgi_headers))
+        trx = protocol.response_stream(self.status_code, list(self.rsgi_headers()))
         async for chunk in self.iter:
             await trx.send_bytes(chunk)

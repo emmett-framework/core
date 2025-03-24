@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import asyncio
+import inspect
 from functools import wraps
 
 from .pipe import Pipe
@@ -64,6 +64,14 @@ class Pipeline:
                 rv.append(getattr(pipe, self._method_close))
         return rv
 
+    def _flow_stream(self):
+        rv = []
+        for pipe in self.pipes:
+            if "on_stream" not in pipe._pipeline_all_methods_:
+                continue
+            rv.append(pipe.on_stream)
+        return rv
+
 
 class RequestPipeline(Pipeline):
     __slots__ = []
@@ -81,7 +89,7 @@ class RequestPipeline(Pipeline):
         return rv
 
     def __call__(self, f):
-        if not asyncio.iscoroutinefunction(f):
+        if not any((inspect.iscoroutinefunction(f), inspect.isasyncgenfunction(f))):
             f = self._awaitable_wrap(f)
         for pipe in reversed(self.pipes):
             if not isinstance(pipe, Pipe):
@@ -118,7 +126,7 @@ class WebsocketPipeline(Pipeline):
         return rv
 
     def __call__(self, f):
-        if not asyncio.iscoroutinefunction(f):
+        if not inspect.iscoroutinefunction(f):
             f = self._awaitable_wrap(f)
         for pipe in reversed(self.pipes):
             if not isinstance(pipe, Pipe):

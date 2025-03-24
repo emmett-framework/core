@@ -16,6 +16,7 @@ class MetaPipe(type):
         "on_pipe_failure",
         "on_receive",
         "on_send",
+        "on_stream",
     }
 
     def __new__(cls, name, bases, attrs):
@@ -84,3 +85,6 @@ class Pipe(metaclass=MetaPipe):
 
     def on_send(self, data):
         return data
+
+    def on_stream(self):
+        pass
