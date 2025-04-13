@@ -105,8 +105,12 @@ class ServerSentEvent:
         if self.event:
             stack.extend(b"event: " + _SSE_NEWLINES_RE.sub("", self.event).encode("utf8") + b"\r\n")
         if self.data:
-            json_data = json_encoder(self.data)
-            stack.extend(b"data: " + json_data.encode("utf8") + b"\r\n")
+            data = self.data
+            if not isinstance(data, (bytes, str)):
+                data = json_encoder(data)
+            if not isinstance(data, bytes):
+                data = data.encode("utf8")
+            stack.extend(b"data: " + data + b"\r\n")
         if self.retry > -1:
             stack.extend(b"retry: " + str(self.retry).encode() + b"\r\n")
 
