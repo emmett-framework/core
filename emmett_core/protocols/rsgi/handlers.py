@@ -8,7 +8,7 @@ from typing import Awaitable, Callable, Optional, Tuple
 from ...ctx import RequestContext, WSContext
 from ...http.response import HTTPFileResponse, HTTPResponse, HTTPStringResponse
 from ...utils import cachedprop
-from .helpers import WSTransport, noop_response
+from .helpers import WSTransport, noop_event, noop_response
 from .wrappers import Request, Response, Websocket
 
 
@@ -73,7 +73,7 @@ class HTTPHandler(RequestHandler):
         await event.wait()
         transport_task.cancel()
 
-    async def handle_request(self, scope, protocol, ctl_event):
+    async def handle_request(self, scope, protocol, ctl_event=noop_event):
         http = await self.pre_handler(scope, protocol, scope.path)
         if coro := http.rsgi(protocol):
             if self.app.config.response_timeout is None:

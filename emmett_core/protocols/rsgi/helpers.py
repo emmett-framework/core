@@ -46,6 +46,11 @@ class ResponseStream(_ResponseStream):
         return self._proto.send_bytes(data)
 
 
+class NoopEvent:
+    def set(self):
+        return
+
+
 class NoopResponse:
     def rsgi(self, protocol):
         return
@@ -72,4 +77,5 @@ class WSTransport:
         return self.input.get
 
 
+noop_event = NoopEvent()
 noop_response = NoopResponse()
