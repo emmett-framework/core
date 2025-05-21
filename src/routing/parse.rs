@@ -1,4 +1,4 @@
-use pyo3::{prelude::*, types::PyDate, IntoPyObjectExt};
+use pyo3::{IntoPyObjectExt, prelude::*, types::PyDate};
 
 #[inline]
 pub(super) fn parse_int_arg(py: Python, arg: &str) -> PyResult<PyObject> {

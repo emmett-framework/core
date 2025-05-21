@@ -1,5 +1,5 @@
 use ctr::cipher::{AsyncStreamCipher, BlockDecryptMut, BlockEncryptMut, KeyIvInit, StreamCipher};
-use pyo3::{prelude::*, IntoPyObjectExt};
+use pyo3::{IntoPyObjectExt, prelude::*};
 use std::borrow::Cow;
 
 type Aes128Cfb8Decryptor = cfb8::Decryptor<aes::Aes128>;

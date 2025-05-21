@@ -1,11 +1,11 @@
 use anyhow::Result;
 use buf_read_ext::BufReadExt;
 use http::{
-    header::{self, HeaderMap},
     HeaderName, HeaderValue,
+    header::{self, HeaderMap},
 };
 use mime::{self, Mime};
-use pyo3::{exceptions::PyStopIteration, prelude::*, types::PyBytes, IntoPyObjectExt};
+use pyo3::{IntoPyObjectExt, exceptions::PyStopIteration, prelude::*, types::PyBytes};
 use std::{
     borrow::Cow,
     collections::VecDeque,
@@ -135,8 +135,8 @@ impl MultiPartParser {
                         Err(_) => {
                             missing_mime = true;
                         }
-                    };
-                };
+                    }
+                }
 
                 match (is_file, missing_mime) {
                     (true, _) => {

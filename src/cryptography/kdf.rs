@@ -1,4 +1,4 @@
-use pyo3::{prelude::*, IntoPyObjectExt};
+use pyo3::{IntoPyObjectExt, prelude::*};
 use ring::pbkdf2 as _pbkdf2;
 use std::num::NonZeroU32;
 

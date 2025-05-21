@@ -1,8 +1,8 @@
 use anyhow::Result;
-use pyo3::{prelude::*, types::PyDict, IntoPyObjectExt};
+use pyo3::{IntoPyObjectExt, prelude::*, types::PyDict};
 use std::{collections::HashMap, sync::RwLock};
 
-use super::{get_route_tree, match_re_routes, match_scheme_route_tree, ReGroupType, RouteMap, RouteMapMatch};
+use super::{ReGroupType, RouteMap, RouteMapMatch, get_route_tree, match_re_routes, match_scheme_route_tree};
 
 #[derive(Default)]
 struct WSRouteMap {

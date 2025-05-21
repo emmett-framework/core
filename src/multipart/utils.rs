@@ -1,5 +1,5 @@
 use anyhow::Result;
-use encoding::{all as encoders, DecoderTrap, Encoding};
+use encoding::{DecoderTrap, Encoding, all as encoders};
 use http::HeaderValue;
 use mime::Mime;
 
