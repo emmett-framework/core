@@ -42,9 +42,6 @@ class ClientContext:
 class ClientHTTPHandlerMixin:
     _client_ctx_cls = ClientContext
 
-    def __call__(self, scope, protocol):
-        return self.handle_request(scope, protocol)
-
     async def dynamic_handler(self, scope, protocol, path):
         request = self.__class__.wapper_cls(
             scope,
