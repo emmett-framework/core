@@ -39,16 +39,19 @@ jobs:
             target: x86_64
             manylinux: auto
             interpreter: pypy3.9 pypy3.10 pypy3.11
-          - os: macos
-            target: x86_64
-            interpreter: pypy3.9 pypy3.10 pypy3.11
-          - os: macos
-            target: aarch64
-            interpreter: pypy3.9 pypy3.10 pypy3.11
+          - os: ubuntu
+            platform: linux
+            target: i686
+            interpreter: 3.9 3.10 3.11 3.12 3.13
           - os: ubuntu
             platform: linux
             target: aarch64
-            container: messense/manylinux_2_24-cross:aarch64
+            # rust-cross/manylinux2014-cross:aarch64 has issues with `ring`
+            container: ghcr.io/rust-cross/manylinux_2_28-cross:aarch64
+          - os: ubuntu
+            platform: linux
+            target: armv7
+            interpreter: 3.9 3.10 3.11 3.12 3.13
           - os: ubuntu
             platform: linux
             target: x86_64
@@ -57,6 +60,16 @@ jobs:
             platform: linux
             target: aarch64
             manylinux: musllinux_1_1
+          - os: ubuntu
+            platform: linux
+            target: armv7
+            manylinux: musllinux_1_1
+          - os: macos
+            target: x86_64
+            interpreter: pypy3.9 pypy3.10 pypy3.11
+          - os: macos
+            target: aarch64
+            interpreter: pypy3.9 pypy3.10 pypy3.11
           - os: windows
             target: x86_64
             interpreter: pypy3.9 pypy3.10 pypy3.11
