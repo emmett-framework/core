@@ -8,7 +8,7 @@ from typing import Awaitable, Callable, Optional, Tuple
 from ...ctx import RequestContext, WSContext
 from ...http.response import HTTPFileResponse, HTTPResponse, HTTPStringResponse
 from ...utils import cachedprop
-from .helpers import WSTransport, noop_event, noop_response
+from .helpers import WSTransport, noop_response
 from .wrappers import Request, Response, Websocket
 
 
@@ -54,37 +54,16 @@ class HTTPHandler(RequestHandler):
         self.static_handler = self._static_handler if self.app.config.handle_static else self.dynamic_handler
         self.pre_handler = self._prefix_handler if self.router._prefix_main else self.static_handler
 
-    def __call__(self, scope, protocol):
-        ctl_event = asyncio.Event()
-        task_request = asyncio.create_task(self.handle_request(scope, protocol, ctl_event))
-        task_transport = asyncio.create_task(self.handle_disconnect(protocol, task_request, ctl_event))
-        return self._reqflow_ctl(ctl_event, task_transport)
-
-    async def handle_disconnect(self, protocol, req_task, ctl_event):
-        if ctl_event.is_set():
-            return
-        await protocol.client_disconnect()
-        if ctl_event.is_set():
-            return
-        req_task.cancel()
-        ctl_event.set()
-
-    async def _reqflow_ctl(self, event, transport_task):
-        await event.wait()
-        transport_task.cancel()
-
-    async def handle_request(self, scope, protocol, ctl_event=noop_event):
+    async def __call__(self, scope, protocol):
         http = await self.pre_handler(scope, protocol, scope.path)
         if coro := http.rsgi(protocol):
             if self.app.config.response_timeout is None:
                 await coro
-                ctl_event.set()
                 return
             try:
                 await asyncio.wait_for(coro, self.app.config.response_timeout)
             except asyncio.TimeoutError:
                 self.app.log.warn(f"Timeout sending response: ({scope.path})")
-        ctl_event.set()
 
     @cachedprop
     def error_handler(self) -> Callable[[], Awaitable[str]]:

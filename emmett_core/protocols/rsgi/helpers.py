@@ -32,23 +32,38 @@ class BodyWrapper:
 class ResponseStream(_ResponseStream):
     __slots__ = []
 
-    async def __call__(self):
+    def __call__(self):
+        ctl_event = asyncio.Event()
+        task_stream = asyncio.create_task(self._handle_stream(ctl_event))
+        task_transport = asyncio.create_task(self._handle_conn(self._proto, task_stream, ctl_event))
+        return self._control_flow(ctl_event, task_transport)
+
+    async def _handle_stream(self, ctl_event):
         for method in self.response._flow_stream:
             method()
-        self._proto = self._proto.response_stream(self.response.status, list(HTTPResponse.rsgi_headers(self)))
+        transport = self._proto.response_stream(self.response.status, list(HTTPResponse.rsgi_headers(self)))
         async for item in self._target:
-            await self.send(self._item_wrapper(item))
+            await self.send(transport, self._item_wrapper(item))
+        ctl_event.set()
+
+    async def _handle_conn(self, protocol, stream_task, ctl_event):
+        if ctl_event.is_set():
+            return
+        await protocol.client_disconnect()
+        if ctl_event.is_set():
+            return
+        stream_task.cancel()
+        ctl_event.set()
+
+    async def _control_flow(self, event, transport_task):
+        await event.wait()
+        transport_task.cancel()
         return noop_response
 
-    def send(self, data):
+    def send(self, transport, data):
         if isinstance(data, str):
-            return self._proto.send_str(data)
-        return self._proto.send_bytes(data)
-
-
-class NoopEvent:
-    def set(self):
-        return
+            return transport.send_str(data)
+        return transport.send_bytes(data)
 
 
 class NoopResponse:
@@ -77,5 +92,4 @@ class WSTransport:
         return self.input.get
 
 
-noop_event = NoopEvent()
 noop_response = NoopResponse()
