@@ -106,7 +106,8 @@ class RouterMixin:
         if len(path) <= 1:
             return path, default
         clean_path = path.lstrip("/")
-        if clean_path[2:3] == "/":
+        next_sep = clean_path[2:3]
+        if not next_sep or next_sep == "/":
             lang, new_path = clean_path[:2], clean_path[2:]
             if lang != default and lang in router.app._languages_set:
                 return new_path, lang
