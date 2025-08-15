@@ -56,6 +56,9 @@ class FileStorage:
     def __init__(self, file):
         self.file = file
 
+    def __iter__(self):
+        return self.file.__iter__()
+
     def __getattr__(self, name):
         return getattr(self.file, name)
 

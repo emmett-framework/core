@@ -57,6 +57,37 @@ def multipart_save_client(current, client, tmpdir: Path):
     return client
 
 
+@pytest.fixture(scope="function")
+def multipart_stream_client(current, client, tmpdir: Path):
+    app = client.application
+
+    @app.route("/", output="str")
+    async def multipart():
+        target = tmpdir / "save.txt"
+        files = await current.request.files
+        with target.open("wb") as tf:
+            for chunk in files.test:
+                tf.write(chunk)
+        return ""
+
+    return client
+
+
+@pytest.fixture(scope="function")
+def multipart_copy_client(current, client, tmpdir: Path):
+    app = client.application
+
+    @app.route("/", output="str")
+    async def multipart():
+        target = tmpdir / "save.txt"
+        files = await current.request.files
+        with target.open("wb") as tf:
+            tf.write(files.test.read())
+        return ""
+
+    return client
+
+
 def test_multipart_request_data(multipart_client):
     response = multipart_client.post("/", data={"some": "data"}, content_type="multipart/form-data")
     assert response.json() == {"params": {"some": ["data"]}, "files": {}}
@@ -340,12 +371,46 @@ def test_multipart_request_file_save(tmpdir: Path, multipart_save_client):
     target = tmpdir / "save.txt"
     with path.open("wb") as file:
         file.write(b"<")
-        for i in range(8192):
-            file.write(f"{i}".zfill(5).encode("utf8"))
+        for i in range(8192 * 128):
+            file.write(f"{i}".zfill(7).encode("utf8"))
         file.write(b">")
 
     with path.open("rb") as f:
         response = multipart_save_client.post("/", data={"test": (f, "test.txt", "text/plain")})
+        assert response.status == 200
+
+    with path.open("rb") as f1, target.open("rb") as f2:
+        assert f1.read() == f2.read()
+
+
+def test_multipart_request_file_stream(tmpdir: Path, multipart_stream_client):
+    path = tmpdir / "test.txt"
+    target = tmpdir / "save.txt"
+    with path.open("wb") as file:
+        file.write(b"<")
+        for i in range(8192 * 128):
+            file.write(f"{i}".zfill(7).encode("utf8"))
+        file.write(b">")
+
+    with path.open("rb") as f:
+        response = multipart_stream_client.post("/", data={"test": (f, "test.txt", "text/plain")})
+        assert response.status == 200
+
+    with path.open("rb") as f1, target.open("rb") as f2:
+        assert f1.read() == f2.read()
+
+
+def test_multipart_request_file_copy(tmpdir: Path, multipart_copy_client):
+    path = tmpdir / "test.txt"
+    target = tmpdir / "save.txt"
+    with path.open("wb") as file:
+        file.write(b"<")
+        for i in range(8192 * 128):
+            file.write(f"{i}".zfill(7).encode("utf8"))
+        file.write(b">")
+
+    with path.open("rb") as f:
+        response = multipart_copy_client.post("/", data={"test": (f, "test.txt", "text/plain")})
         assert response.status == 200
 
     with path.open("rb") as f1, target.open("rb") as f2:

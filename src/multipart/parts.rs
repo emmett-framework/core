@@ -3,7 +3,7 @@ use http::header::{self, HeaderMap};
 use pyo3::{exceptions::PyStopIteration, prelude::*, types::PyBytes};
 use std::{
     fs::File,
-    io::{BufRead, BufReader, Read},
+    io::{BufReader, Read},
     path::PathBuf,
     sync::Mutex,
 };
@@ -117,7 +117,7 @@ impl FilePartReader {
         drop(inner.file.take().expect("uninitialized file part"));
         let file = File::open(inner.path.clone()).map_err::<anyhow::Error, _>(|_| error_io!())?;
         let size = file.metadata().unwrap().len();
-        let reader = Mutex::new(BufReader::with_capacity(4096, file));
+        let reader = Mutex::new(BufReader::with_capacity(131_072, file));
         Ok(Self { inner, reader, size })
     }
 
@@ -128,7 +128,6 @@ impl FilePartReader {
         let mut len_read = 0;
 
         while len_read < size {
-            guard.fill_buf()?;
             let rsize = guard.read(&mut buf[len_read..])?;
             if rsize == 0 {
                 break;
@@ -143,8 +142,6 @@ impl FilePartReader {
 
     fn read_all(&self) -> Result<Vec<u8>> {
         let mut guard = self.reader.lock().unwrap();
-
-        guard.fill_buf()?;
         let mut buf = Vec::new();
         guard.read_to_end(&mut buf)?;
         Ok(buf)
@@ -174,8 +171,8 @@ impl FilePartReader {
     #[pyo3(signature = (size = None))]
     fn read<'p>(&self, py: Python<'p>, size: Option<usize>) -> Result<Bound<'p, PyBytes>> {
         let buf = match size {
-            Some(size) => self.read_chunk(size),
-            None => self.read_all(),
+            Some(size) => py.allow_threads(|| self.read_chunk(size)),
+            None => py.allow_threads(|| self.read_all()),
         }?;
         Ok(PyBytes::new(py, &buf[..]))
     }
@@ -185,7 +182,7 @@ impl FilePartReader {
     }
 
     fn __next__<'p>(&self, py: Python<'p>) -> Result<Bound<'p, PyBytes>> {
-        let buf = self.read_chunk(4096)?;
+        let buf = py.allow_threads(|| self.read_chunk(131_072))?;
         if buf.is_empty() {
             return Err(PyStopIteration::new_err(py.None()).into());
         }

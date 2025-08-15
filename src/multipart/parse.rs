@@ -175,6 +175,7 @@ impl MultiPartParser {
             }
 
             if let MultiPartParserState::File(filepart) = &mut self.state {
+                // potentially allow py threads?
                 let (read, found) = reader.stream_until_token(
                     lt_boundary,
                     &mut filepart.file.as_mut().expect("uninitialized file part"),
@@ -189,6 +190,8 @@ impl MultiPartParser {
                 let state = mem::take(&mut self.state);
                 match state {
                     MultiPartParserState::File(part) => {
+                        // potentially allow py threads?
+                        part.file.as_ref().unwrap().sync_data()?;
                         self.stack.push_back(Node::File(part));
                     }
                     _ => unreachable!(),
