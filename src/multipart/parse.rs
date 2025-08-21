@@ -9,7 +9,7 @@ use pyo3::{IntoPyObjectExt, exceptions::PyStopIteration, prelude::*, types::PyBy
 use std::{
     borrow::Cow,
     collections::VecDeque,
-    io::{BufRead, Cursor},
+    io::{BufRead, Cursor, Read},
     mem,
     sync::Mutex,
 };
@@ -64,12 +64,36 @@ impl MultiPartParser {
     where
         T: AsRef<[u8]>,
     {
+        macro_rules! buffered_read {
+            ($boundary:expr, $target:expr) => {{
+                let peeker = reader.fill_buf()?;
+                if peeker.is_empty() {
+                    return Ok(());
+                }
+                // if the chunk is not long enough to check for boundary, buffer
+                if (peeker.len() + self.buffer.len()) < $boundary.len() {
+                    reader.read_to_end(&mut self.buffer)?;
+                    return Ok(());
+                }
+
+                if self.buffer.is_empty() {
+                    reader.stream_until_token($boundary, $target)?
+                } else {
+                    // we buffered previous contents, chain the two reads
+                    let mut chain = self.buffer.chain(&mut *reader);
+                    let ret = chain.stream_until_token($boundary, $target)?;
+                    self.buffer.truncate(0);
+                    ret
+                }
+            }};
+        }
+
         let (lt, ltlt, lt_boundary) = &self.boundaries;
 
         loop {
-            let peeker = reader.fill_buf()?;
-
             if let MultiPartParserState::Clean = self.state {
+                let peeker = reader.fill_buf()?;
+
                 // If the last chunk is empty and we're in clean state there's nothing to do.
                 if peeker.is_empty() {
                     return Ok(());
@@ -122,6 +146,9 @@ impl MultiPartParser {
                     }?
                 };
 
+                // clean the buffer
+                self.buffer.truncate(0);
+
                 let mut is_file = false;
                 let mut missing_mime = false;
                 if let Some(cd) = part_headers.get(header::CONTENT_DISPOSITION) {
@@ -154,7 +181,7 @@ impl MultiPartParser {
             }
 
             if let MultiPartParserState::Value(part) = &mut self.state {
-                let (read, found) = reader.stream_until_token(lt_boundary, &mut part.value)?;
+                let (read, found) = buffered_read!(lt_boundary, &mut part.value);
                 self.read_size += read;
                 if self.read_size >= self.max_part_size {
                     return Err(error_size!());
@@ -175,11 +202,10 @@ impl MultiPartParser {
             }
 
             if let MultiPartParserState::File(filepart) = &mut self.state {
-                // potentially allow py threads?
-                let (read, found) = reader.stream_until_token(
+                let (read, found) = buffered_read!(
                     lt_boundary,
-                    &mut filepart.file.as_mut().expect("uninitialized file part"),
-                )?;
+                    &mut filepart.file.as_mut().expect("uninitialized file part")
+                );
                 let size = filepart.size.unwrap_or(0);
                 filepart.size = Some(size + read);
 
