@@ -137,6 +137,8 @@ jobs:
         shell: bash
       - name: Generate PGO data
         shell: bash
+        env:
+          PGO_RUN: y
         run: |
           uv python install ${{ env.UV_PYTHON }}
           uv venv .venv
