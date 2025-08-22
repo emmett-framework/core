@@ -3,7 +3,7 @@ use http::header::{self, HeaderMap};
 use pyo3::{exceptions::PyStopIteration, prelude::*, types::PyBytes};
 use std::{
     fs::File,
-    io::{BufReader, Read},
+    io::{BufReader, BufWriter, Read},
     path::PathBuf,
     sync::Mutex,
 };
@@ -44,7 +44,7 @@ pub(super) struct FilePart {
     pub name: String,
     filename: Option<String>,
     path: PathBuf,
-    pub file: Option<File>,
+    pub file: Option<BufWriter<File>>,
     pub size: Option<usize>,
     tempdir: Option<PathBuf>,
 }
@@ -61,8 +61,7 @@ impl FilePart {
         let tempdir = Some(path.clone());
         path.push(TextNonce::sized_urlsafe(32).unwrap().into_string());
 
-        let file = File::create(path.clone())?;
-
+        let file = BufWriter::with_capacity(131_072, File::create(path.clone())?);
         Ok(FilePart {
             headers,
             name,

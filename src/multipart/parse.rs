@@ -272,9 +272,9 @@ impl MultiPartParser {
 
                 let state = mem::take(&mut self.state);
                 match state {
-                    MultiPartParserState::File(part) => {
+                    MultiPartParserState::File(mut part) => {
                         // potentially allow py threads?
-                        part.file.as_ref().unwrap().sync_data()?;
+                        part.file.as_mut().unwrap().flush()?;
                         self.stack.push_back(Node::File(part));
                     }
                     _ => unreachable!(),

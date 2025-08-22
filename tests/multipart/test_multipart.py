@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -383,6 +384,7 @@ def test_multipart_request_file_save(tmpdir: Path, multipart_save_client):
         assert f1.read() == f2.read()
 
 
+@pytest.mark.skipif(bool(os.getenv("PGO_RUN")), reason="PGO build")
 def test_multipart_request_file_stream(tmpdir: Path, multipart_stream_client):
     path = tmpdir / "test.txt"
     target = tmpdir / "save.txt"
@@ -400,6 +402,7 @@ def test_multipart_request_file_stream(tmpdir: Path, multipart_stream_client):
         assert f1.read() == f2.read()
 
 
+@pytest.mark.skipif(bool(os.getenv("PGO_RUN")), reason="PGO build")
 def test_multipart_request_file_copy(tmpdir: Path, multipart_copy_client):
     path = tmpdir / "test.txt"
     target = tmpdir / "save.txt"
