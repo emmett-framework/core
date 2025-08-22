@@ -57,7 +57,7 @@ impl FilePart {
         let name = get_mime_param_encoded(cd, "name", encoding)?
             .ok_or::<anyhow::Error>(error_parsing!("missing name field"))?;
         let filename = get_mime_param_encoded(cd, "filename", encoding)?;
-        let mut path = tempfile::Builder::new().prefix("mime_multipart").tempdir()?.into_path();
+        let mut path = tempfile::Builder::new().prefix("mime_multipart").tempdir()?.keep();
         let tempdir = Some(path.clone());
         path.push(TextNonce::sized_urlsafe(32).unwrap().into_string());
 

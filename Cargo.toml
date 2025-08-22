@@ -44,7 +44,7 @@ mime = "=0.3"
 pyo3 = { version = "=0.25", features = ["anyhow", "extension-module", "generate-import-lib"] }
 regex = "=1.11"
 ring = "=0.17"
-tempfile = "=3.19"
+tempfile = "=3.21"
 textnonce = "=1.0"
 
 [profile.release]
