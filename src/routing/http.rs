@@ -40,19 +40,19 @@ macro_rules! get_route_node_mut {
 #[pyclass(module = "emmett_core._emmett_core", frozen, subclass)]
 pub(super) struct HTTPRouter {
     routes: RwLock<HTTPRouterData>,
-    pydict: PyObject,
-    pynone: PyObject,
+    pydict: Py<PyAny>,
+    pynone: Py<PyAny>,
 }
 
 impl HTTPRouter {
     #[inline]
     fn match_routes<'p>(
         py: Python<'p>,
-        pydict: &PyObject,
+        pydict: &Py<PyAny>,
         routes_node: &'p HTTPRouteMapNode,
         method: &str,
         path: &str,
-    ) -> Option<(PyObject, PyObject)> {
+    ) -> Option<(Py<PyAny>, Py<PyAny>)> {
         routes_node.get(method).and_then(|routes| {
             routes.r#static.get(path).map_or_else(
                 || match_re_routes!(py, routes, path),
@@ -78,10 +78,10 @@ impl HTTPRouter {
     }
 
     #[pyo3(signature = (route, path, method, host=None, scheme=None))]
-    fn add_static_route(&self, route: PyObject, path: &str, method: &str, host: Option<&str>, scheme: Option<&str>) {
+    fn add_static_route(&self, route: Py<PyAny>, path: &str, method: &str, host: Option<&str>, scheme: Option<&str>) {
         let mut routes = self.routes.write().unwrap();
         let node_method = get_route_node_mut!(routes, host, scheme, method);
-        let mut node: HashMap<Box<str>, PyObject> = HashMap::with_capacity(node_method.r#static.len() + 1);
+        let mut node: HashMap<Box<str>, Py<PyAny>> = HashMap::with_capacity(node_method.r#static.len() + 1);
         let keys: Vec<Box<str>> = node_method.r#static.keys().cloned().collect();
         for key in keys {
             node.insert(key.clone(), node_method.r#static.remove(&key).unwrap());
@@ -93,7 +93,7 @@ impl HTTPRouter {
     #[pyo3(signature = (route, rule, rgtmap, method, host=None, scheme=None))]
     fn add_re_route(
         &self,
-        route: PyObject,
+        route: Py<PyAny>,
         rule: &str,
         rgtmap: &Bound<PyDict>,
         method: &str,
@@ -133,7 +133,7 @@ impl HTTPRouter {
     }
 
     #[pyo3(signature = (method, path))]
-    fn match_route_direct(&self, py: Python, method: &str, path: &str) -> (PyObject, PyObject) {
+    fn match_route_direct(&self, py: Python, method: &str, path: &str) -> (Py<PyAny>, Py<PyAny>) {
         let routes = self.routes.read().unwrap();
         HTTPRouter::match_routes(py, &self.pydict, &routes.nhost.any, method, path)
             .or_else(|| Some((self.pynone.clone_ref(py), self.pydict.clone_ref(py))))
@@ -141,7 +141,7 @@ impl HTTPRouter {
     }
 
     #[pyo3(signature = (scheme, method, path))]
-    fn match_route_scheme(&self, py: Python, scheme: &str, method: &str, path: &str) -> (PyObject, PyObject) {
+    fn match_route_scheme(&self, py: Python, scheme: &str, method: &str, path: &str) -> (Py<PyAny>, Py<PyAny>) {
         let routes = self.routes.read().unwrap();
         HTTPRouter::match_routes(
             py,
@@ -156,7 +156,7 @@ impl HTTPRouter {
     }
 
     #[pyo3(signature = (host, method, path))]
-    fn match_route_host(&self, py: Python, host: &str, method: &str, path: &str) -> (PyObject, PyObject) {
+    fn match_route_host(&self, py: Python, host: &str, method: &str, path: &str) -> (Py<PyAny>, Py<PyAny>) {
         let routes = self.routes.read().unwrap();
         routes
             .whost
@@ -173,7 +173,14 @@ impl HTTPRouter {
     }
 
     #[pyo3(signature = (host, scheme, method, path))]
-    fn match_route_all(&self, py: Python, host: &str, scheme: &str, method: &str, path: &str) -> (PyObject, PyObject) {
+    fn match_route_all(
+        &self,
+        py: Python,
+        host: &str,
+        scheme: &str,
+        method: &str,
+        path: &str,
+    ) -> (Py<PyAny>, Py<PyAny>) {
         let routes = self.routes.read().unwrap();
         routes
             .whost

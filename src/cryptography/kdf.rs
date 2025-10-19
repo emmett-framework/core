@@ -10,9 +10,9 @@ fn pbkdf2(
     rounds: u32,
     klen: u32,
     hash_algo: _pbkdf2::Algorithm,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let mut vdata = vec![0u8; klen as usize];
-    py.allow_threads(|| {
+    py.detach(|| {
         let ret: &mut [u8] = &mut vdata;
         _pbkdf2::derive(hash_algo, NonZeroU32::new(rounds).unwrap(), salt, data, ret);
         ret
@@ -22,25 +22,25 @@ fn pbkdf2(
 
 #[pyfunction]
 #[pyo3(signature = (data, salt, rounds, klen))]
-fn pbkdf2_sha1(py: Python, data: &[u8], salt: &[u8], rounds: u32, klen: u32) -> PyResult<PyObject> {
+fn pbkdf2_sha1(py: Python, data: &[u8], salt: &[u8], rounds: u32, klen: u32) -> PyResult<Py<PyAny>> {
     pbkdf2(py, data, salt, rounds, klen, _pbkdf2::PBKDF2_HMAC_SHA1)
 }
 
 #[pyfunction]
 #[pyo3(signature = (data, salt, rounds, klen))]
-fn pbkdf2_sha256(py: Python, data: &[u8], salt: &[u8], rounds: u32, klen: u32) -> PyResult<PyObject> {
+fn pbkdf2_sha256(py: Python, data: &[u8], salt: &[u8], rounds: u32, klen: u32) -> PyResult<Py<PyAny>> {
     pbkdf2(py, data, salt, rounds, klen, _pbkdf2::PBKDF2_HMAC_SHA256)
 }
 
 #[pyfunction]
 #[pyo3(signature = (data, salt, rounds, klen))]
-fn pbkdf2_sha384(py: Python, data: &[u8], salt: &[u8], rounds: u32, klen: u32) -> PyResult<PyObject> {
+fn pbkdf2_sha384(py: Python, data: &[u8], salt: &[u8], rounds: u32, klen: u32) -> PyResult<Py<PyAny>> {
     pbkdf2(py, data, salt, rounds, klen, _pbkdf2::PBKDF2_HMAC_SHA384)
 }
 
 #[pyfunction]
 #[pyo3(signature = (data, salt, rounds, klen))]
-fn pbkdf2_sha512(py: Python, data: &[u8], salt: &[u8], rounds: u32, klen: u32) -> PyResult<PyObject> {
+fn pbkdf2_sha512(py: Python, data: &[u8], salt: &[u8], rounds: u32, klen: u32) -> PyResult<Py<PyAny>> {
     pbkdf2(py, data, salt, rounds, klen, _pbkdf2::PBKDF2_HMAC_SHA512)
 }
 

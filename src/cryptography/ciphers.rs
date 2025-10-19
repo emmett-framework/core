@@ -18,9 +18,9 @@ fn aes_asyncstream_encrypt<C: AsyncStreamCipher + BlockEncryptMut + Send>(
     py: Python,
     cipher: C,
     data: Cow<[u8]>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let mut vec = data.to_vec();
-    py.allow_threads(|| {
+    py.detach(|| {
         let ret = &mut vec[..];
         cipher.encrypt(ret);
         ret
@@ -33,9 +33,9 @@ fn aes_asyncstream_decrypt<C: AsyncStreamCipher + BlockDecryptMut + Send>(
     py: Python,
     cipher: C,
     data: Cow<[u8]>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let mut vec = data.to_vec();
-    py.allow_threads(|| {
+    py.detach(|| {
         let ret = &mut vec[..];
         cipher.decrypt(ret);
         ret
@@ -44,9 +44,9 @@ fn aes_asyncstream_decrypt<C: AsyncStreamCipher + BlockDecryptMut + Send>(
 }
 
 #[inline]
-fn aes_stream<C: StreamCipher + Send>(py: Python, cipher: &mut C, data: Cow<[u8]>) -> PyResult<PyObject> {
+fn aes_stream<C: StreamCipher + Send>(py: Python, cipher: &mut C, data: Cow<[u8]>) -> PyResult<Py<PyAny>> {
     let mut vec = data.to_vec();
-    py.allow_threads(|| {
+    py.detach(|| {
         let ret = &mut vec[..];
         cipher.apply_keystream(ret);
         ret
@@ -56,70 +56,70 @@ fn aes_stream<C: StreamCipher + Send>(py: Python, cipher: &mut C, data: Cow<[u8]
 
 #[pyfunction]
 #[pyo3(signature = (data, key, nonce))]
-fn aes128_cfb8_encrypt(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<PyObject> {
+fn aes128_cfb8_encrypt(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<Py<PyAny>> {
     let cipher = Aes128Cfb8Encryptor::new(key.into(), nonce.into());
     aes_asyncstream_encrypt(py, cipher, data)
 }
 
 #[pyfunction]
 #[pyo3(signature = (data, key, nonce))]
-fn aes128_cfb8_decrypt(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<PyObject> {
+fn aes128_cfb8_decrypt(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<Py<PyAny>> {
     let cipher = Aes128Cfb8Decryptor::new(key.into(), nonce.into());
     aes_asyncstream_decrypt(py, cipher, data)
 }
 
 #[pyfunction]
 #[pyo3(signature = (data, key, nonce))]
-fn aes256_cfb8_encrypt(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<PyObject> {
+fn aes256_cfb8_encrypt(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<Py<PyAny>> {
     let cipher = Aes256Cfb8Encryptor::new(key.into(), nonce.into());
     aes_asyncstream_encrypt(py, cipher, data)
 }
 
 #[pyfunction]
 #[pyo3(signature = (data, key, nonce))]
-fn aes256_cfb8_decrypt(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<PyObject> {
+fn aes256_cfb8_decrypt(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<Py<PyAny>> {
     let cipher = Aes256Cfb8Decryptor::new(key.into(), nonce.into());
     aes_asyncstream_decrypt(py, cipher, data)
 }
 
 #[pyfunction]
 #[pyo3(signature = (data, key, nonce))]
-fn aes128_cfb128_encrypt(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<PyObject> {
+fn aes128_cfb128_encrypt(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<Py<PyAny>> {
     let cipher = Aes128Cfb128Encryptor::new(key.into(), nonce.into());
     aes_asyncstream_encrypt(py, cipher, data)
 }
 
 #[pyfunction]
 #[pyo3(signature = (data, key, nonce))]
-fn aes128_cfb128_decrypt(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<PyObject> {
+fn aes128_cfb128_decrypt(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<Py<PyAny>> {
     let cipher = Aes128Cfb128Decryptor::new(key.into(), nonce.into());
     aes_asyncstream_decrypt(py, cipher, data)
 }
 
 #[pyfunction]
 #[pyo3(signature = (data, key, nonce))]
-fn aes256_cfb128_encrypt(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<PyObject> {
+fn aes256_cfb128_encrypt(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<Py<PyAny>> {
     let cipher = Aes256Cfb128Encryptor::new(key.into(), nonce.into());
     aes_asyncstream_encrypt(py, cipher, data)
 }
 
 #[pyfunction]
 #[pyo3(signature = (data, key, nonce))]
-fn aes256_cfb128_decrypt(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<PyObject> {
+fn aes256_cfb128_decrypt(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<Py<PyAny>> {
     let cipher = Aes256Cfb128Decryptor::new(key.into(), nonce.into());
     aes_asyncstream_decrypt(py, cipher, data)
 }
 
 #[pyfunction]
 #[pyo3(signature = (data, key, nonce))]
-fn aes128_ctr128(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<PyObject> {
+fn aes128_ctr128(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<Py<PyAny>> {
     let mut cipher = Aes128Ctr128::new(key.into(), nonce.into());
     aes_stream(py, &mut cipher, data)
 }
 
 #[pyfunction]
 #[pyo3(signature = (data, key, nonce))]
-fn aes256_ctr128(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<PyObject> {
+fn aes256_ctr128(py: Python, data: Cow<[u8]>, key: &[u8], nonce: &[u8]) -> PyResult<Py<PyAny>> {
     let mut cipher = Aes256Ctr128::new(key.into(), nonce.into());
     aes_stream(py, &mut cipher, data)
 }

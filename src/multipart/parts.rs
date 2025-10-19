@@ -170,8 +170,8 @@ impl FilePartReader {
     #[pyo3(signature = (size = None))]
     fn read<'p>(&self, py: Python<'p>, size: Option<usize>) -> Result<Bound<'p, PyBytes>> {
         let buf = match size {
-            Some(size) => py.allow_threads(|| self.read_chunk(size)),
-            None => py.allow_threads(|| self.read_all()),
+            Some(size) => py.detach(|| self.read_chunk(size)),
+            None => py.detach(|| self.read_all()),
         }?;
         Ok(PyBytes::new(py, &buf[..]))
     }
@@ -181,7 +181,7 @@ impl FilePartReader {
     }
 
     fn __next__<'p>(&self, py: Python<'p>) -> Result<Bound<'p, PyBytes>> {
-        let buf = py.allow_threads(|| self.read_chunk(131_072))?;
+        let buf = py.detach(|| self.read_chunk(131_072))?;
         if buf.is_empty() {
             return Err(PyStopIteration::new_err(py.None()).into());
         }

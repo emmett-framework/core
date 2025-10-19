@@ -5,8 +5,8 @@ mod http;
 mod parse;
 mod ws;
 
-type RouteMapStatic = HashMap<Box<str>, PyObject>;
-type RouteMapMatch = Vec<(regex::Regex, Vec<(Box<str>, ReGroupType)>, PyObject)>;
+type RouteMapStatic = HashMap<Box<str>, Py<PyAny>>;
+type RouteMapMatch = Vec<(regex::Regex, Vec<(Box<str>, ReGroupType)>, Py<PyAny>)>;
 
 enum ReGroupType {
     Any,
@@ -59,7 +59,7 @@ macro_rules! match_scheme_route_tree {
 
 macro_rules! match_re_routes {
     ($py:expr, $routes:expr, $path:expr) => {{
-        $py.allow_threads(|| {
+        $py.detach(|| {
             for (rpath, groupnames, robj) in &$routes.r#match {
                 if rpath.is_match($path) {
                     let groups = rpath.captures($path).unwrap();

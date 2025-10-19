@@ -386,7 +386,7 @@ impl MultiPartContentsIter {
         pyself
     }
 
-    fn __next__(&self, py: Python) -> PyResult<(String, bool, PyObject)> {
+    fn __next__(&self, py: Python) -> PyResult<(String, bool, Py<PyAny>)> {
         let mut guard = self.inner.lock().unwrap();
 
         if let Some(item) = guard.pop_front() {

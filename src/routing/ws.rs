@@ -19,18 +19,18 @@ struct WSRouterData {
 #[pyclass(module = "emmett_core._emmett_core", frozen, subclass)]
 pub(super) struct WSRouter {
     routes: RwLock<WSRouterData>,
-    pydict: PyObject,
-    pynone: PyObject,
+    pydict: Py<PyAny>,
+    pynone: Py<PyAny>,
 }
 
 impl WSRouter {
     #[inline]
     fn match_routes<'p>(
         py: Python<'p>,
-        pydict: &PyObject,
+        pydict: &Py<PyAny>,
         routes: &'p RouteMap,
         path: &str,
-    ) -> Option<(PyObject, PyObject)> {
+    ) -> Option<(Py<PyAny>, Py<PyAny>)> {
         routes.r#static.get(path).map_or_else(
             || match_re_routes!(py, routes, path),
             |route| Some((route.clone_ref(py), pydict.clone_ref(py))),
@@ -54,10 +54,10 @@ impl WSRouter {
     }
 
     #[pyo3(signature = (route, path, host=None, scheme=None))]
-    fn add_static_route(&self, route: PyObject, path: &str, host: Option<&str>, scheme: Option<&str>) {
+    fn add_static_route(&self, route: Py<PyAny>, path: &str, host: Option<&str>, scheme: Option<&str>) {
         let mut routes = self.routes.write().unwrap();
         let node_method = get_route_tree!(WSRouteMap, routes, host, scheme);
-        let mut node: HashMap<Box<str>, PyObject> = HashMap::with_capacity(node_method.r#static.len() + 1);
+        let mut node: HashMap<Box<str>, Py<PyAny>> = HashMap::with_capacity(node_method.r#static.len() + 1);
         let keys: Vec<Box<str>> = node_method.r#static.keys().cloned().collect();
         for key in keys {
             node.insert(key.clone(), node_method.r#static.remove(&key).unwrap());
@@ -69,7 +69,7 @@ impl WSRouter {
     #[pyo3(signature = (route, rule, rgtmap, host=None, scheme=None))]
     fn add_re_route(
         &self,
-        route: PyObject,
+        route: Py<PyAny>,
         rule: &str,
         rgtmap: &Bound<PyDict>,
         host: Option<&str>,
@@ -108,7 +108,7 @@ impl WSRouter {
     }
 
     #[pyo3(signature = (path))]
-    fn match_route_direct(&self, py: Python, path: &str) -> (PyObject, PyObject) {
+    fn match_route_direct(&self, py: Python, path: &str) -> (Py<PyAny>, Py<PyAny>) {
         let routes = self.routes.read().unwrap();
         WSRouter::match_routes(py, &self.pydict, &routes.nhost.any, path)
             .or_else(|| Some((self.pynone.clone_ref(py), self.pydict.clone_ref(py))))
@@ -116,7 +116,7 @@ impl WSRouter {
     }
 
     #[pyo3(signature = (scheme, path))]
-    fn match_route_scheme(&self, py: Python, scheme: &str, path: &str) -> (PyObject, PyObject) {
+    fn match_route_scheme(&self, py: Python, scheme: &str, path: &str) -> (Py<PyAny>, Py<PyAny>) {
         let routes = self.routes.read().unwrap();
         WSRouter::match_routes(py, &self.pydict, match_scheme_route_tree!(scheme, routes.nhost), path)
             .or_else(|| WSRouter::match_routes(py, &self.pydict, &routes.nhost.any, path))
@@ -125,7 +125,7 @@ impl WSRouter {
     }
 
     #[pyo3(signature = (host, path))]
-    fn match_route_host(&self, py: Python, host: &str, path: &str) -> (PyObject, PyObject) {
+    fn match_route_host(&self, py: Python, host: &str, path: &str) -> (Py<PyAny>, Py<PyAny>) {
         let routes = self.routes.read().unwrap();
         routes
             .whost
@@ -142,7 +142,7 @@ impl WSRouter {
     }
 
     #[pyo3(signature = (host, scheme, path))]
-    fn match_route_all(&self, py: Python, host: &str, scheme: &str, path: &str) -> (PyObject, PyObject) {
+    fn match_route_all(&self, py: Python, host: &str, scheme: &str, path: &str) -> (Py<PyAny>, Py<PyAny>) {
         let routes = self.routes.read().unwrap();
         routes
             .whost
