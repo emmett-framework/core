@@ -16,6 +16,8 @@ classifiers = [
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
     'Programming Language :: Python :: 3.13',
+    'Programming Language :: Python :: 3.14',
+    'Programming Language :: Python :: Free Threading :: 2 - Beta',
     'Programming Language :: Python :: Implementation :: CPython',
     'Programming Language :: Python :: Implementation :: PyPy',
     'Programming Language :: Python',
@@ -66,7 +68,7 @@ all = [
 ]
 
 [build-system]
-requires = ['maturin>=1.1.0,<2']
+requires = ['maturin>=1.8.0,<2']
 build-backend = 'maturin'
 
 [tool.maturin]
