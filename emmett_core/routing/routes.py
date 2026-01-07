@@ -66,7 +66,7 @@ class Route:
         types = {"int", "float", "date"}
         tmap = {}
         for argtype in types:
-            for arg in set(re.compile(r"<{}\:(\w+)>".format(argtype)).findall(self.path)):
+            for arg in set(re.compile(rf"<{argtype}\:(\w+)>").findall(self.path)):
                 tmap[arg] = argtype
         self._argtypes = tmap
 

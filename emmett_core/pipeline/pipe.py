@@ -1,6 +1,3 @@
-from typing import Optional
-
-
 class MetaPipe(type):
     _pipeline_methods_ = {
         "open",
@@ -45,7 +42,7 @@ class MetaPipe(type):
 
 
 class Pipe(metaclass=MetaPipe):
-    output: Optional[str] = None
+    output: str | None = None
 
     async def open(self):
         pass

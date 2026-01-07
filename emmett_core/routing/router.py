@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import re
 from collections import namedtuple
+from collections.abc import Callable
 from functools import partial
-from typing import Any, Callable, List, Type
+from typing import Any
 
 from .._emmett_core import HTTPRouter as _HTTPRouter, WSRouter as _WSRouter
 from ..extensions import Signals
@@ -27,7 +28,7 @@ RouteRecWS = namedtuple("RouteRecWS", ["name", "dispatch", "flow_recv", "flow_se
 class RouterMixin:
     _routing_signal = Signals.before_routes
     _routing_started = False
-    _routing_stack: List[RoutingRule] = []
+    _routing_stack: list[RoutingRule] = []
     _re_components = re.compile(r"(\()?([^<\w]+)?<(\w+)\:(\w+)>(\)\?)?")
 
     @classmethod
@@ -343,7 +344,7 @@ class WebsocketRouter(_WSRouter):
 class RoutingCtx:
     __slots__ = ["router", "rule"]
 
-    def __init__(self, router, rule_cls: Type[RoutingRule], *args, **kwargs):
+    def __init__(self, router, rule_cls: type[RoutingRule], *args, **kwargs):
         self.router = router
         self.rule = rule_cls(self.router, *args, **kwargs)
         self.router._mixin_cls._routing_stack.append(self.rule)
@@ -359,7 +360,7 @@ class RoutingCtx:
 class RoutingCtxGroup:
     __slots__ = ["ctxs"]
 
-    def __init__(self, ctxs: List[RoutingCtx]):
+    def __init__(self, ctxs: list[RoutingCtx]):
         self.ctxs = ctxs
 
     def __call__(self, f: Callable[..., Any]) -> Callable[..., Any]:

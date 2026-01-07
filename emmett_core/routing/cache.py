@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Union
+from collections.abc import Callable
+from typing import Any
 
 from ..cache.handlers import CacheHandler
 from ..cache.hash import CacheHashMixin
@@ -14,8 +15,8 @@ class RouteCacheRule(CacheHashMixin):
         query_params: bool = True,
         language: bool = True,
         hostname: bool = False,
-        headers: List[str] = [],
-        duration: Union[int, str, None] = "default",
+        headers: list[str] = [],
+        duration: int | str | None = "default",
     ):
         super().__init__()
         self.cache = handler
@@ -39,13 +40,13 @@ class RouteCacheRule(CacheHashMixin):
     def _build_ctx_key(self, route: Any, **ctx) -> str:  # type: ignore
         return route.name + ":" + self._build_hash(ctx)
 
-    def _build_ctx(self, kwargs: Dict[str, Any], route: Any, current: Any) -> Dict[str, Any]:
+    def _build_ctx(self, kwargs: dict[str, Any], route: Any, current: Any) -> dict[str, Any]:
         rv = {"kwargs": kwargs}
         for key, builder in self._ctx_builders:
             rv[key] = builder(route, current)
         return rv
 
-    def headers_strategy(self, data: Dict[str, str]) -> List[str]:
+    def headers_strategy(self, data: dict[str, str]) -> list[str]:
         return [data[key] for key in self.check_headers]
 
     def __call__(self, f: Callable[..., Any]) -> Callable[..., Any]:

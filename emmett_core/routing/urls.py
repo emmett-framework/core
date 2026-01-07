@@ -34,7 +34,7 @@ class UrlBuilder:
 
     def path_prefix(self, scheme, host):
         if scheme and host:
-            return "{}://{}".format(scheme, host)
+            return f"{scheme}://{host}"
         return ""
 
     def args(self, args):
@@ -70,7 +70,7 @@ class HttpUrlBuilder(UrlBuilder):
             if not isinstance(anchor, (list, tuple)):
                 anchor = [anchor]
             for element in anchor:
-                rv += "#{}".format(element)
+                rv += f"#{element}"
         return rv
 
     def url(self, scheme, host, language, args, params, anchor):

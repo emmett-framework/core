@@ -6,7 +6,7 @@ import pickle
 import tempfile
 import time
 import zlib
-from typing import Any, Dict, Optional, Type, TypeVar
+from typing import Any, TypeVar
 from uuid import uuid4
 
 from .cryptography import symmetric as crypto_symmetric
@@ -60,9 +60,9 @@ class SessionPipe(Pipe):
         expire: int = 3600,
         secure: bool = False,
         samesite: str = "Lax",
-        domain: Optional[str] = None,
-        cookie_name: Optional[str] = None,
-        cookie_data: Optional[Dict[str, Any]] = None,
+        domain: str | None = None,
+        cookie_name: str | None = None,
+        cookie_data: dict[str, Any] | None = None,
     ):
         self.current = current
         self.expire = expire
@@ -188,7 +188,7 @@ class BackendStoredSessionPipe(SessionPipe):
     def _session_cookie_data(self) -> str:
         return self.current.session._sid
 
-    def _load_session(self, wrapper) -> Optional[SessionData]:
+    def _load_session(self, wrapper) -> SessionData | None:
         sid = wrapper.cookies[self.cookie_name].value
         data = self._load(sid)
         if data is not None:
@@ -268,7 +268,7 @@ class FileSessionPipe(BackendStoredSessionPipe):
             with open(self._get_filename(sid), "rb") as f:
                 exp = pickle.load(f)  # noqa: S301
                 val = pickle.load(f)  # noqa: S301
-        except IOError:
+        except OSError:
             return None
         if exp < time.time():
             return None
@@ -345,10 +345,10 @@ TSessionPipe = TypeVar("TSessionPipe", bound=SessionPipe)
 
 
 class SessionManager:
-    _pipe: Optional[SessionPipe] = None
+    _pipe: SessionPipe | None = None
 
     @classmethod
-    def _build_pipe(cls, handler_cls: Type[TSessionPipe], *args: Any, **kwargs: Any) -> TSessionPipe:
+    def _build_pipe(cls, handler_cls: type[TSessionPipe], *args: Any, **kwargs: Any) -> TSessionPipe:
         raise NotImplementedError
 
     @classmethod
@@ -358,9 +358,9 @@ class SessionManager:
         expire: int = 3600,
         secure: bool = False,
         samesite: str = "Lax",
-        domain: Optional[str] = None,
-        cookie_name: Optional[str] = None,
-        cookie_data: Optional[Dict[str, Any]] = None,
+        domain: str | None = None,
+        cookie_name: str | None = None,
+        cookie_data: dict[str, Any] | None = None,
         compression_level: int = 0,
     ) -> CookieSessionPipe:
         return cls._build_pipe(
@@ -381,9 +381,9 @@ class SessionManager:
         expire: int = 3600,
         secure: bool = False,
         samesite: str = "Lax",
-        domain: Optional[str] = None,
-        cookie_name: Optional[str] = None,
-        cookie_data: Optional[Dict[str, Any]] = None,
+        domain: str | None = None,
+        cookie_name: str | None = None,
+        cookie_data: dict[str, Any] | None = None,
         filename_template: str = "emt_%s.sess",
     ) -> FileSessionPipe:
         return cls._build_pipe(
@@ -405,9 +405,9 @@ class SessionManager:
         expire: int = 3600,
         secure: bool = False,
         samesite: str = "Lax",
-        domain: Optional[str] = None,
-        cookie_name: Optional[str] = None,
-        cookie_data: Optional[Dict[str, Any]] = None,
+        domain: str | None = None,
+        cookie_name: str | None = None,
+        cookie_data: dict[str, Any] | None = None,
     ) -> RedisSessionPipe:
         return cls._build_pipe(
             RedisSessionPipe,

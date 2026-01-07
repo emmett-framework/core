@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any
 
 from . import IngressWrapper
 
@@ -12,7 +12,7 @@ class Websocket(IngressWrapper):
         self._flow_send = flow_send
 
     @abstractmethod
-    async def accept(self, headers: Optional[Dict[str, str]] = None, subprotocol: Optional[str] = None): ...
+    async def accept(self, headers: dict[str, str] | None = None, subprotocol: str | None = None): ...
 
     async def _accept_and_receive(self) -> Any:
         await self.accept()

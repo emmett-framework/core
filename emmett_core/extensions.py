@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from enum import Enum
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, TypeVar
+from typing import Any, TypeVar
 
 from .datastructures import sdict
 
@@ -50,8 +51,8 @@ class MetaExtension(type):
 
 
 class Extension(metaclass=MetaExtension):
-    namespace: Optional[str] = None
-    default_config: Dict[str, Any] = {}
+    namespace: str | None = None
+    default_config: dict[str, Any] = {}
 
     def __init__(self, app, env: sdict, config: sdict):
         self.app = app

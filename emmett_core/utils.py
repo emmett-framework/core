@@ -1,22 +1,23 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Callable, Generic, Optional, Union, overload
+from collections.abc import Callable
+from typing import Any, Generic, overload
 
 from .typing import T
 
 
 class _cached_prop(Generic[T]):
-    def __init__(self, fget: Callable[..., T], name: str, doc: Optional[str] = None):
+    def __init__(self, fget: Callable[..., T], name: str, doc: str | None = None):
         self.fget = fget
         self.__doc__ = doc
         self.__name__ = name
 
-    def __get__(self, obj: Optional[object], cls: Any) -> T:
+    def __get__(self, obj: object | None, cls: Any) -> T:
         raise NotImplementedError
 
 
-def cachedprop(fget: Callable[..., T], doc: Optional[str] = None, name: Optional[str] = None) -> _cached_prop[T]:
+def cachedprop(fget: Callable[..., T], doc: str | None = None, name: str | None = None) -> _cached_prop[T]:
     doc = doc or fget.__doc__
     name = name or fget.__name__
     if asyncio.iscoroutinefunction(fget):
@@ -31,7 +32,7 @@ class _cached_prop_sync(_cached_prop[T]):
     @overload
     def __get__(self, obj: object, cls: Any) -> T: ...
 
-    def __get__(self, obj: Optional[object], cls: Any) -> Union[_cached_prop_sync, T]:
+    def __get__(self, obj: object | None, cls: Any) -> _cached_prop_sync | T:
         if obj is None:
             return self
         obj.__dict__[self.__name__] = rv = self.fget(obj)
@@ -65,7 +66,7 @@ class _cached_prop_loop(_cached_prop[T]):
     @overload
     def __get__(self, obj: object, cls: Any) -> T: ...
 
-    def __get__(self, obj: Optional[object], cls: Any) -> Union[_cached_prop_loop, T]:
+    def __get__(self, obj: object | None, cls: Any) -> _cached_prop_loop | T:
         if obj is None:
             return self
         obj.__dict__[self.__name__] = rv = _cached_awaitable_coro[T](self.fget, obj)

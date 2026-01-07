@@ -5,8 +5,9 @@ import os
 import re
 import time
 from collections import OrderedDict
+from collections.abc import Awaitable, Callable
 from email.utils import formatdate
-from typing import Any, Awaitable, Callable, Optional, Tuple, Union
+from typing import Any
 
 from ...ctx import RequestContext, WSContext
 from ...extensions import Signals
@@ -30,7 +31,7 @@ class EventHandlerWrapper:
 
     async def __call__(
         self, handler: Handler, scope: Scope, receive: Receive, send: Send, event: Event
-    ) -> Tuple[Optional[EventHandler], None]:
+    ) -> tuple[EventHandler | None, None]:
         task = await self.f(handler, scope, receive, send, event)
         return task, None
 
@@ -69,14 +70,14 @@ class Handler(metaclass=MetaHandler):
 
         return wrap
 
-    def get_event_handler(self, event_type: str) -> Union[EventHandler, EventHandlerWrapper]:
+    def get_event_handler(self, event_type: str) -> EventHandler | EventHandlerWrapper:
         return self._events_handlers_.get(event_type, _event_missing)
 
     def __call__(self, scope: Scope, receive: Receive, send: Send) -> Awaitable[None]:
         return self.handle_events(scope, receive, send)
 
     async def handle_events(self, scope: Scope, receive: Receive, send: Send):
-        task: Optional[EventLooper] = _event_looper
+        task: EventLooper | None = _event_looper
         event = None
         while task:
             task, event = await task(self, scope, receive, send, event)
@@ -161,7 +162,7 @@ class HTTPHandler(RequestHandler):
         scope["emt.path"] = path[self.router._prefix_main_len :] or "/"
         return self.static_handler(scope, receive, send)
 
-    def _static_lang_matcher(self, path: str) -> Tuple[Optional[str], Optional[str]]:
+    def _static_lang_matcher(self, path: str) -> tuple[str | None, str | None]:
         match = REGEX_STATIC_LANG.match(path)
         if match:
             lang, mname, version, file_name = match.group("l", "m", "v", "f")
@@ -178,7 +179,7 @@ class HTTPHandler(RequestHandler):
             return static_file, version
         return None, None
 
-    def _static_nolang_matcher(self, path: str) -> Tuple[Optional[str], Optional[str]]:
+    def _static_nolang_matcher(self, path: str) -> tuple[str | None, str | None]:
         if path.startswith("/static/"):
             mname, version, file_name = REGEX_STATIC.match(path).group("m", "v", "f")
             if mname:
@@ -304,7 +305,7 @@ class WSHandler(RequestHandler):
 
 async def _event_looper(
     handler: Handler, scope: Scope, receive: Receive, send: Send, event: Any = None
-) -> Tuple[Union[EventHandler, EventHandlerWrapper], Event]:
+) -> tuple[EventHandler | EventHandlerWrapper, Event]:
     event = await receive()
     return handler.get_event_handler(event["type"]), event
 

@@ -2,12 +2,11 @@ import hmac
 import os
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from binascii import hexlify, unhexlify
-from typing import Tuple, Union
 
 from .. import _emmett_core
 
 
-def encrypt(data: Union[bytes, str], key: str) -> Tuple[bytes, bytes, bytes]:
+def encrypt(data: bytes | str, key: str) -> tuple[bytes, bytes, bytes]:
     if isinstance(data, str):
         data = data.encode("utf8")
     klen, ivlen, salt = 256 // 8, 128 // 8, os.urandom(32)
@@ -31,12 +30,12 @@ def decrypt(data: bytes, salt: bytes, signature: bytes, key: str) -> bytes:
     return _emmett_core.aes256_ctr128(data, k1, nonce)
 
 
-def encrypt_hex(data: Union[bytes, str], key: str, jchar: str = ":") -> str:
+def encrypt_hex(data: bytes | str, key: str, jchar: str = ":") -> str:
     cipher, salt, signature = encrypt(data, key)
     return jchar.join(hexlify(v).decode("utf8") for v in [salt, signature, cipher])
 
 
-def decrypt_hex(data: Union[bytes, str], key: str, jchar: str = ":") -> bytes:
+def decrypt_hex(data: bytes | str, key: str, jchar: str = ":") -> bytes:
     try:
         salt, signature, cipher = data.split(jchar)
     except ValueError:
@@ -44,12 +43,12 @@ def decrypt_hex(data: Union[bytes, str], key: str, jchar: str = ":") -> bytes:
     return decrypt(unhexlify(cipher), unhexlify(salt), unhexlify(signature), key)
 
 
-def encrypt_b64(data: Union[bytes, str], key: str, jchar: str = ":") -> str:
+def encrypt_b64(data: bytes | str, key: str, jchar: str = ":") -> str:
     cipher, salt, signature = encrypt(data, key)
     return jchar.join(urlsafe_b64encode(v).decode("utf8") for v in [salt, signature, cipher])
 
 
-def decrypt_b64(data: Union[bytes, str], key: str, jchar: str = ":") -> bytes:
+def decrypt_b64(data: bytes | str, key: str, jchar: str = ":") -> bytes:
     try:
         salt, signature, cipher = data.split(jchar)
     except ValueError:

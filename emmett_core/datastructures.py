@@ -1,10 +1,9 @@
 import copy
-from typing import Dict, Optional
 
 from .typing import KT, VT
 
 
-class sdict(Dict[KT, VT]):
+class sdict(dict[KT, VT]):
     #: like a dictionary except `obj.foo` can be used in addition to
     #  `obj['foo']`, and setting obj.foo = None deletes item foo.
     __slots__ = ()
@@ -14,7 +13,7 @@ class sdict(Dict[KT, VT]):
     __getitem__ = dict.get  # type: ignore
 
     # see http://stackoverflow.com/questions/10364332/how-to-pickle-python-object-derived-from-dict
-    def __getattr__(self, key: str) -> Optional[VT]:
+    def __getattr__(self, key: str) -> VT | None:
         if key.startswith("__"):
             raise AttributeError
         return self.get(key, None)  # type: ignore
@@ -40,7 +39,7 @@ class gsdict(sdict[KT, VT]):
 class ImmutableListMixin:
     _hash_cache = None
 
-    def __hash__(self) -> Optional[int]:  # type: ignore
+    def __hash__(self) -> int | None:  # type: ignore
         if self._hash_cache is not None:
             return self._hash_cache
         rv = self._hash_cache = hash(tuple(self))  # type: ignore

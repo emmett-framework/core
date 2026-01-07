@@ -63,7 +63,7 @@ class TestCookieJar(CookieJar):
 
 class Headers(dict):
     def __init__(self, headers=[]):
-        super(Headers, self).__init__()
+        super().__init__()
         self._list = []
         for header in headers:
             key, value = header[0].lower(), header[1]
@@ -71,16 +71,16 @@ class Headers(dict):
             self[key] = value
 
     def __getitem__(self, name):
-        return super(Headers, self).__getitem__(name.lower())
+        return super().__getitem__(name.lower())
 
     def __setitem__(self, name, value):
-        return super(Headers, self).__setitem__(name.lower(), value)
+        return super().__setitem__(name.lower(), value)
 
     def __iter__(self):
         return iter(self._list)
 
     def get(self, name, d=None, type=None):
-        rv = super(Headers, self).get(name.lower)
+        rv = super().get(name.lower)
         if rv is None:
             return d
         if type is None:
@@ -92,7 +92,7 @@ class Headers(dict):
         return rv
 
 
-class _FileHandler(object):
+class _FileHandler:
     def __init__(self, stream=None, filename=None, name=None, content_type=None, content_length=None, headers=None):
         self.name = name
         self.stream = stream or BytesIO()

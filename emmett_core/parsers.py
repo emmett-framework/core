@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from functools import partial
-from typing import Any, Callable, Dict
+from typing import Any
 
 from ._imports import orjson, rapidjson
 
@@ -17,8 +18,8 @@ else:
     _json_opts = {}
 
 
-class Parsers(object):
-    _registry_: Dict[str, Callable[[str], Dict[str, Any]]] = {}
+class Parsers:
+    _registry_: dict[str, Callable[[str], dict[str, Any]]] = {}
 
     @classmethod
     def register_for(cls, target):

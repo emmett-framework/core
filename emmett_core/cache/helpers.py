@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 from .hash import CacheHashMixin
 
@@ -12,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class CacheDecorator(CacheHashMixin):
-    def __init__(self, handler: CacheHandler, key: Optional[str], duration: Union[int, str, None] = "default"):
+    def __init__(self, handler: CacheHandler, key: str | None, duration: int | str | None = "default"):
         super().__init__()
         self._cache = handler
         self.key = key

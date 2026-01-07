@@ -5,8 +5,9 @@ import heapq
 import pickle
 import threading
 import time
+from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Any, overload
 
 from ..typing import T
 from .helpers import CacheDecorator
@@ -24,7 +25,7 @@ class CacheHandler:
     @staticmethod
     def _key_prefix_(method: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(method)
-        def wrap(self, key: Optional[str] = None, *args, **kwargs) -> Any:
+        def wrap(self, key: str | None = None, *args, **kwargs) -> Any:
             key = self._prefix + key if key is not None else key
             return method(self, key, *args, **kwargs)
 
@@ -33,7 +34,7 @@ class CacheHandler:
     @staticmethod
     def _convert_duration_(method: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(method)
-        def wrap(self, key: str, value: Any, duration: Union[int, str, None] = "default") -> Any:
+        def wrap(self, key: str, value: Any, duration: int | str | None = "default") -> Any:
             if duration is None:
                 duration = 60 * 60 * 24 * 365
             if duration == "default":
@@ -52,36 +53,32 @@ class CacheHandler:
 
     @overload
     def __call__(
-        self, key: Optional[str] = None, function: None = None, duration: Union[int, str, None] = "default"
+        self, key: str | None = None, function: None = None, duration: int | str | None = "default"
     ) -> CacheDecorator: ...
 
     @overload
-    def __call__(
-        self, key: str, function: Optional[Callable[..., T]], duration: Union[int, str, None] = "default"
-    ) -> T: ...
+    def __call__(self, key: str, function: Callable[..., T] | None, duration: int | str | None = "default") -> T: ...
 
     def __call__(
         self,
-        key: Optional[str] = None,
-        function: Optional[Callable[..., T]] = None,
-        duration: Union[int, str, None] = "default",
-    ) -> Union[CacheDecorator, T]:
+        key: str | None = None,
+        function: Callable[..., T] | None = None,
+        duration: int | str | None = "default",
+    ) -> CacheDecorator | T:
         if function:
             if asyncio.iscoroutinefunction(function):
                 return self.get_or_set_loop(key, function, duration)  # type: ignore
             return self.get_or_set(key, function, duration)  # type: ignore
         return CacheDecorator(self, key, duration)
 
-    def get_or_set(self, key: str, function: Callable[[], T], duration: Union[int, str, None] = "default") -> T:
+    def get_or_set(self, key: str, function: Callable[[], T], duration: int | str | None = "default") -> T:
         value = self.get(key)
         if value is None:
             value = function()
             self.set(key, value, duration)
         return value
 
-    async def get_or_set_loop(
-        self, key: str, function: Callable[[], T], duration: Union[int, str, None] = "default"
-    ) -> T:
+    async def get_or_set_loop(self, key: str, function: Callable[[], T], duration: int | str | None = "default") -> T:
         value = self.get(key)
         if value is None:
             value = await function()  # type: ignore
@@ -91,19 +88,19 @@ class CacheHandler:
     def get(self, key: str) -> Any:
         return None
 
-    def set(self, key: str, value: Any, duration: Union[int, str, None]):
+    def set(self, key: str, value: Any, duration: int | str | None):
         pass
 
-    def clear(self, key: Optional[str] = None):
+    def clear(self, key: str | None = None):
         pass
 
     def response(
         self,
-        duration: Union[int, str, None] = "default",
+        duration: int | str | None = "default",
         query_params: bool = True,
         language: bool = True,
         hostname: bool = False,
-        headers: List[str] = [],
+        headers: list[str] = [],
     ) -> RouteCacheRule:
         from ..routing.cache import RouteCacheRule
 
@@ -124,9 +121,9 @@ class RamCache(CacheHandler):
 
     def __init__(self, prefix: str = "", threshold: int = 500, default_expire: int = 300):
         super().__init__(prefix=prefix, default_expire=default_expire)
-        self.data: Dict[str, Any] = {}
-        self._heap_exp: List[Tuple[int, str]] = []
-        self._heap_acc: List[Tuple[float, str]] = []
+        self.data: dict[str, Any] = {}
+        self._heap_exp: list[tuple[int, str]] = []
+        self._heap_acc: list[tuple[float, str]] = []
         self._threshold = threshold
 
     def _prune(self, now):
@@ -174,7 +171,7 @@ class RamCache(CacheHandler):
             self.data[key] = RamElement(value, kwargs["expiration"], kwargs["now"])
 
     @CacheHandler._key_prefix_
-    def clear(self, key: Optional[str] = None):
+    def clear(self, key: str | None = None):
         with self.lock:
             if key is not None:
                 try:
@@ -195,7 +192,7 @@ class RedisCache(CacheHandler):
         self,
         host: str = "localhost",
         port: int = 6379,
-        password: Optional[str] = None,
+        password: str | None = None,
         db: int = 0,
         prefix: str = "cache:",
         default_expire: int = 300,
@@ -237,7 +234,7 @@ class RedisCache(CacheHandler):
         return self._cache.setex(name=key, time=kwargs["duration"], value=dumped)
 
     @CacheHandler._key_prefix_
-    def clear(self, key: Optional[str] = None):
+    def clear(self, key: str | None = None):
         if key is not None:
             if key.endswith("*"):
                 keys = self._cache.delete(self._cache.keys(key))

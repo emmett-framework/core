@@ -20,7 +20,9 @@ use super::{
     utils::charset_decode,
 };
 
+#[derive(Default)]
 enum MultiPartParserState {
+    #[default]
     Clean,
     Termination,
     Headers,
@@ -28,12 +30,6 @@ enum MultiPartParserState {
     File(FilePart),
     Skip,
     Consumed,
-}
-
-impl Default for MultiPartParserState {
-    fn default() -> Self {
-        Self::Clean
-    }
 }
 
 struct MultiPartParser {

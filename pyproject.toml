@@ -107,6 +107,8 @@ extend-ignore = [
     'N818', # leave to us exceptions naming
     'S101', # assert is fine
     'S110', # pass on exceptions is fine
+    'UP031',
+    'UP038',
 ]
 mccabe = { max-complexity = 24 }
 

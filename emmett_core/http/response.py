@@ -4,9 +4,10 @@ import errno
 import mimetypes
 import os
 import stat
+from collections.abc import AsyncIterable, Generator, Iterable
 from email.utils import formatdate
 from hashlib import md5
-from typing import Any, AsyncIterable, BinaryIO, Dict, Generator, Iterable, Tuple
+from typing import Any, BinaryIO
 
 from .._io import loop_open_file
 
@@ -16,22 +17,21 @@ class HTTPResponse(Exception):
         self,
         status_code: int,
         *,
-        headers: Dict[str, str] = {"content-type": "text/plain"},
-        cookies: Dict[str, Any] = {},
+        headers: dict[str, str] = {"content-type": "text/plain"},
+        cookies: dict[str, Any] = {},
     ):
         self.status_code: int = status_code
-        self._headers: Dict[str, str] = headers
-        self._cookies: Dict[str, Any] = cookies
+        self._headers: dict[str, str] = headers
+        self._cookies: dict[str, Any] = cookies
 
-    def asgi_headers(self) -> Generator[Tuple[bytes, bytes], None, None]:
+    def asgi_headers(self) -> Generator[tuple[bytes, bytes], None, None]:
         for key, val in self._headers.items():
             yield key.encode("latin-1"), val.encode("latin-1")
         for cookie in self._cookies.values():
             yield b"set-cookie", str(cookie)[12:].encode("latin-1")
 
-    def rsgi_headers(self) -> Generator[Tuple[str, str], None, None]:
-        for key, val in self._headers.items():
-            yield key, val
+    def rsgi_headers(self) -> Generator[tuple[str, str], None, None]:
+        yield from self._headers.items()
         for cookie in self._cookies.values():
             yield "set-cookie", str(cookie)[12:]
 
@@ -54,8 +54,8 @@ class HTTPBytesResponse(HTTPResponse):
         self,
         status_code: int,
         body: bytes = b"",
-        headers: Dict[str, str] = {"content-type": "text/plain"},
-        cookies: Dict[str, Any] = {},
+        headers: dict[str, str] = {"content-type": "text/plain"},
+        cookies: dict[str, Any] = {},
     ):
         super().__init__(status_code, headers=headers, cookies=cookies)
         self.body = body
@@ -72,8 +72,8 @@ class HTTPStringResponse(HTTPResponse):
         self,
         status_code: int,
         body: str = "",
-        headers: Dict[str, str] = {"content-type": "text/plain"},
-        cookies: Dict[str, Any] = {},
+        headers: dict[str, str] = {"content-type": "text/plain"},
+        cookies: dict[str, Any] = {},
     ):
         super().__init__(status_code, headers=headers, cookies=cookies)
         self.body = body
@@ -90,7 +90,7 @@ class HTTPStringResponse(HTTPResponse):
 
 
 class HTTPRedirectResponse(HTTPResponse):
-    def __init__(self, status_code: int, location: str, cookies: Dict[str, Any] = {}):
+    def __init__(self, status_code: int, location: str, cookies: dict[str, Any] = {}):
         location = location.replace("\r", "%0D").replace("\n", "%0A")
         super().__init__(status_code, headers={"location": location}, cookies=cookies)
 
@@ -100,8 +100,8 @@ class HTTPFileResponse(HTTPResponse):
         self,
         file_path: str,
         status_code: int = 200,
-        headers: Dict[str, str] = {},
-        cookies: Dict[str, Any] = {},
+        headers: dict[str, str] = {},
+        cookies: dict[str, Any] = {},
         chunk_size: int = 4096,
     ):
         super().__init__(status_code, headers=headers, cookies=cookies)
@@ -133,7 +133,7 @@ class HTTPFileResponse(HTTPResponse):
                 await send({"type": "http.response.pathsend", "path": str(self.file_path)})
             else:
                 await self._send_body(send)
-        except IOError as e:
+        except OSError as e:
             if e.errno == errno.EACCES:
                 await HTTPResponse(403).send(scope, send)
             else:
@@ -159,7 +159,7 @@ class HTTPFileResponse(HTTPResponse):
             if not stat.S_ISREG(stat_data.st_mode):
                 return HTTPResponse(403).rsgi(protocol)
             self._headers.update(self._get_stat_headers(stat_data))
-        except IOError as e:
+        except OSError as e:
             if e.errno == errno.EACCES:
                 return HTTPResponse(403).rsgi(protocol)
             return HTTPResponse(404).rsgi(protocol)
@@ -172,8 +172,8 @@ class HTTPIOResponse(HTTPResponse):
         self,
         io_stream: BinaryIO,
         status_code: int = 200,
-        headers: Dict[str, str] = {},
-        cookies: Dict[str, Any] = {},
+        headers: dict[str, str] = {},
+        cookies: dict[str, Any] = {},
         chunk_size: int = 4096,
     ):
         super().__init__(status_code, headers=headers, cookies=cookies)
@@ -208,7 +208,7 @@ class HTTPIOResponse(HTTPResponse):
 
 class HTTPIterResponse(HTTPResponse):
     def __init__(
-        self, iter: Iterable[bytes], status_code: int = 200, headers: Dict[str, str] = {}, cookies: Dict[str, Any] = {}
+        self, iter: Iterable[bytes], status_code: int = 200, headers: dict[str, str] = {}, cookies: dict[str, Any] = {}
     ):
         super().__init__(status_code, headers=headers, cookies=cookies)
         self.iter = iter
@@ -229,8 +229,8 @@ class HTTPAsyncIterResponse(HTTPResponse):
         self,
         iter: AsyncIterable[bytes],
         status_code: int = 200,
-        headers: Dict[str, str] = {},
-        cookies: Dict[str, Any] = {},
+        headers: dict[str, str] = {},
+        cookies: dict[str, Any] = {},
     ):
         super().__init__(status_code, headers=headers, cookies=cookies)
         self.iter = iter

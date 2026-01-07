@@ -6,7 +6,7 @@ import sys
 import traceback
 import warnings
 from types import ModuleType
-from typing import Any, Generic, Optional
+from typing import Any, Generic
 
 from .typing import T
 
@@ -101,7 +101,7 @@ class ContextVarProxy(ProxyMixin, Generic[T]):
 
 
 #: application loaders
-def get_app_module(module_name: str, raise_on_failure: bool = True) -> Optional[ModuleType]:
+def get_app_module(module_name: str, raise_on_failure: bool = True) -> ModuleType | None:
     try:
         __import__(module_name)
     except ImportError:
@@ -144,7 +144,7 @@ class RemovedInNextVersionWarning(DeprecationWarning):
     pass
 
 
-class deprecated(object):
+class deprecated:
     def __init__(self, old_method_name, new_method_name, class_name=None, s=0):
         self.class_name = class_name
         self.old_method_name = old_method_name

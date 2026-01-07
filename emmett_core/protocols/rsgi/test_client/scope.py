@@ -76,7 +76,7 @@ class Scope:
         self.authority = authority
 
 
-class ScopeBuilder(object):
+class ScopeBuilder:
     server_protocol = "1.1"
 
     def __init__(

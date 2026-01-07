@@ -1,5 +1,6 @@
+from collections.abc import Callable, Iterator, Mapping
 from datetime import datetime
-from typing import Any, Callable, Dict, Iterator, List, Mapping, Optional, Tuple, Union
+from typing import Any
 from urllib.parse import parse_qs
 
 from ...datastructures import sdict
@@ -19,8 +20,8 @@ _push_headers = {"accept", "accept-encoding", "accept-language", "cache-control"
 class Headers(Mapping[str, str]):
     __slots__ = ["_data"]
 
-    def __init__(self, scope: Dict[str, Any]):
-        self._data: Dict[bytes, bytes] = dict(scope["headers"])
+    def __init__(self, scope: dict[str, Any]):
+        self._data: dict[bytes, bytes] = dict(scope["headers"])
 
     __hash__ = None  # type: ignore
 
@@ -37,7 +38,7 @@ class Headers(Mapping[str, str]):
     def __len__(self) -> int:
         return len(self._data)
 
-    def get(self, key: str, default: Optional[Any] = None, cast: Optional[Callable[[Any], Any]] = None) -> Any:
+    def get(self, key: str, default: Any | None = None, cast: Callable[[Any], Any] | None = None) -> Any:
         rv = self._data.get(key.lower().encode("latin-1"))
         rv = rv.decode() if rv is not None else default  # type: ignore
         if cast is None:
@@ -47,7 +48,7 @@ class Headers(Mapping[str, str]):
         except ValueError:
             return default
 
-    def items(self) -> Iterator[Tuple[str, str]]:  # type: ignore
+    def items(self) -> Iterator[tuple[str, str]]:  # type: ignore
         for key, value in self._data.items():
             yield key.decode("latin-1"), value.decode("latin-1")
 
@@ -73,7 +74,7 @@ class ASGIIngressMixin:
         return Headers(self._scope)
 
     @cachedprop
-    def query_params(self) -> sdict[str, Union[str, List[str]]]:
+    def query_params(self) -> sdict[str, str | list[str]]:
         rv: sdict[str, Any] = sdict()
         for key, values in parse_qs(self._scope["query_string"].decode("latin-1"), keep_blank_values=True).items():
             if len(values) == 1:
@@ -99,9 +100,9 @@ class Request(ASGIIngressMixin, _Request):
         scope: Scope,
         receive: Receive,
         send: Send,
-        max_content_length: Optional[int] = None,
-        max_multipart_size: Optional[int] = None,
-        body_timeout: Optional[int] = None,
+        max_content_length: int | None = None,
+        max_multipart_size: int | None = None,
+        body_timeout: int | None = None,
     ):
         super().__init__(scope, receive, send)
         self.max_content_length = max_content_length
@@ -159,13 +160,13 @@ class Websocket(ASGIIngressMixin, _Websocket):
     def _asgi_spec_version(self) -> int:
         return int("".join(self._scope.get("asgi", {}).get("spec_version", "2.0").split(".")))
 
-    def _encode_headers(self, headers: Dict[str, str]) -> List[Tuple[bytes, bytes]]:
+    def _encode_headers(self, headers: dict[str, str]) -> list[tuple[bytes, bytes]]:
         return [(key.encode("utf-8"), val.encode("utf-8")) for key, val in headers.items()]
 
-    async def accept(self, headers: Optional[Dict[str, str]] = None, subprotocol: Optional[str] = None):
+    async def accept(self, headers: dict[str, str] | None = None, subprotocol: str | None = None):
         if self._accepted:
             return
-        message: Dict[str, Any] = {"type": "websocket.accept", "subprotocol": subprotocol}
+        message: dict[str, Any] = {"type": "websocket.accept", "subprotocol": subprotocol}
         if headers and self._asgi_spec_version > 20:
             message["headers"] = self._encode_headers(headers)
         await self._send(message)

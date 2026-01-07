@@ -82,8 +82,7 @@ class HtmlTag:
             self.attributes[key] = value
 
     def __iter__(self):
-        for item in self.components:
-            yield item
+        yield from self.components
 
     def __str__(self):
         return self.__html__()
@@ -116,8 +115,7 @@ class HtmlTag:
             for k, v in filter(lambda item: item[0].startswith("_") and item[1] is not None, sorted(attrs.items())):
                 nk = k[1:]
                 if isinstance(v, dict):
-                    for item in cls._build_html_attributes_items(v, nk):
-                        yield item
+                    yield from cls._build_html_attributes_items(v, nk)
                 elif v is True:
                     yield (nk, nk)
                 else:

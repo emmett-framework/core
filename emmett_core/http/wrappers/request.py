@@ -1,7 +1,7 @@
 import datetime
 from abc import abstractmethod
 from io import BytesIO
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import parse_qs
 
 from ..._emmett_core import (
@@ -35,7 +35,7 @@ class Request(IngressWrapper):
         return self._now
 
     @cachedprop
-    def content_type(self) -> Optional[str]:
+    def content_type(self) -> str | None:
         return get_content_type(self.headers.get("content-type", "")) or "text/plain"
 
     @cachedprop

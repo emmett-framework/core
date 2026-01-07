@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 from urllib.parse import parse_qs
 
 from ...datastructures import sdict
@@ -30,7 +30,7 @@ class RSGIIngressMixin:
         return self._scope.authority
 
     @cachedprop
-    def query_params(self) -> sdict[str, Union[str, List[str]]]:
+    def query_params(self) -> sdict[str, str | list[str]]:
         rv: sdict[str, Any] = sdict()
         for key, values in parse_qs(self._scope.query_string, keep_blank_values=True).items():
             if len(values) == 1:
@@ -58,9 +58,9 @@ class Request(RSGIIngressMixin, _Request):
         scope,
         path,
         protocol,
-        max_content_length: Optional[int] = None,
-        max_multipart_size: Optional[int] = None,
-        body_timeout: Optional[int] = None,
+        max_content_length: int | None = None,
+        max_multipart_size: int | None = None,
+        body_timeout: int | None = None,
     ):
         super().__init__(scope, path, protocol)
         self.max_content_length = max_content_length
@@ -98,7 +98,7 @@ class Websocket(RSGIIngressMixin, _Websocket):
         self.receive = self._accept_and_receive
         self.send = self._accept_and_send
 
-    async def accept(self, headers: Optional[Dict[str, str]] = None, subprotocol: Optional[str] = None):
+    async def accept(self, headers: dict[str, str] | None = None, subprotocol: str | None = None):
         if self._proto.transport:
             return
         await self._proto.init()

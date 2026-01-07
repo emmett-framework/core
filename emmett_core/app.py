@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Awaitable, Callable
 from logging import Logger
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Set, Type, Union
+from typing import Any
 
 from ._internal import create_missing_app_folders, get_root_path
 from .datastructures import gsdict, sdict
@@ -56,14 +57,14 @@ class AppModule:
         app: App,
         import_name: str,
         name: str,
-        static_folder: Optional[str],
-        static_path: Optional[str],
-        url_prefix: Optional[str],
-        hostname: Optional[str],
-        cache: Optional[RouteCacheRule],
-        root_path: Optional[str],
-        pipeline: List[Pipe],
-        opts: Dict[str, Any] = {},
+        static_folder: str | None,
+        static_path: str | None,
+        url_prefix: str | None,
+        hostname: str | None,
+        cache: RouteCacheRule | None,
+        root_path: str | None,
+        pipeline: list[Pipe],
+        opts: dict[str, Any] = {},
     ):
         return cls(
             app,
@@ -85,13 +86,13 @@ class AppModule:
         appmod: AppModule,
         import_name: str,
         name: str,
-        static_folder: Optional[str],
-        static_path: Optional[str],
-        url_prefix: Optional[str],
-        hostname: Optional[str],
-        cache: Optional[RouteCacheRule],
-        root_path: Optional[str],
-        opts: Dict[str, Any] = {},
+        static_folder: str | None,
+        static_path: str | None,
+        url_prefix: str | None,
+        hostname: str | None,
+        cache: RouteCacheRule | None,
+        root_path: str | None,
+        opts: dict[str, Any] = {},
     ):
         if "." in name:
             raise RuntimeError("Nested app modules' names should not contains dots")
@@ -121,13 +122,13 @@ class AppModule:
         appmodgroup: AppModuleGroup,
         import_name: str,
         name: str,
-        static_folder: Optional[str],
-        static_path: Optional[str],
-        url_prefix: Optional[str],
-        hostname: Optional[str],
-        cache: Optional[RouteCacheRule],
-        root_path: Optional[str],
-        opts: Dict[str, Any] = {},
+        static_folder: str | None,
+        static_path: str | None,
+        url_prefix: str | None,
+        hostname: str | None,
+        cache: RouteCacheRule | None,
+        root_path: str | None,
+        opts: dict[str, Any] = {},
     ) -> AppModulesGrouped:
         mods = []
         for module in appmodgroup.modules:
@@ -150,13 +151,13 @@ class AppModule:
         self,
         import_name: str,
         name: str,
-        static_folder: Optional[str] = None,
-        static_path: Optional[str] = None,
-        url_prefix: Optional[str] = None,
-        hostname: Optional[str] = None,
-        cache: Optional[RouteCacheRule] = None,
-        root_path: Optional[str] = None,
-        module_class: Optional[Type[AppModule]] = None,
+        static_folder: str | None = None,
+        static_path: str | None = None,
+        url_prefix: str | None = None,
+        hostname: str | None = None,
+        cache: RouteCacheRule | None = None,
+        root_path: str | None = None,
+        module_class: type[AppModule] | None = None,
         **kwargs: Any,
     ) -> AppModule:
         module_class = module_class or self.__class__
@@ -178,13 +179,13 @@ class AppModule:
         app: App,
         name: str,
         import_name: str,
-        static_folder: Optional[str] = None,
-        static_path: Optional[str] = None,
-        url_prefix: Optional[str] = None,
-        hostname: Optional[str] = None,
-        cache: Optional[RouteCacheRule] = None,
-        root_path: Optional[str] = None,
-        pipeline: Optional[List[Pipe]] = None,
+        static_folder: str | None = None,
+        static_path: str | None = None,
+        url_prefix: str | None = None,
+        hostname: str | None = None,
+        cache: RouteCacheRule | None = None,
+        root_path: str | None = None,
+        pipeline: list[Pipe] | None = None,
         **kwargs: Any,
     ):
         self.app = app
@@ -208,14 +209,14 @@ class AppModule:
         self.app._register_module(self)
 
     @property
-    def pipeline(self) -> List[Pipe]:
+    def pipeline(self) -> list[Pipe]:
         return self._pipeline
 
     @pipeline.setter
-    def pipeline(self, pipeline: List[Pipe]):
+    def pipeline(self, pipeline: list[Pipe]):
         self._pipeline = self._super_pipeline + pipeline
 
-    def route(self, paths: Optional[Union[str, List[str]]] = None, name: Optional[str] = None, **kwargs) -> RoutingCtx:
+    def route(self, paths: str | list[str] | None = None, name: str | None = None, **kwargs) -> RoutingCtx:
         if name is not None and "." in name:
             raise RuntimeError("App modules' route names should not contains dots")
         name = self.name + "." + (name or "")
@@ -226,9 +227,7 @@ class AppModule:
         kwargs["cache"] = kwargs.get("cache", self.cache)
         return self.app.route(paths=paths, name=name, prefix=self.url_prefix, hostname=self.hostname, **kwargs)
 
-    def websocket(
-        self, paths: Optional[Union[str, List[str]]] = None, name: Optional[str] = None, **kwargs
-    ) -> RoutingCtx:
+    def websocket(self, paths: str | list[str] | None = None, name: str | None = None, **kwargs) -> RoutingCtx:
         if name is not None and "." in name:
             raise RuntimeError("App modules' websocket names should not contains dots")
         name = self.name + "." + (name or "")
@@ -269,7 +268,7 @@ class App:
     signals_class = Signals
     test_client_class = EmmettTestClient
 
-    def __init__(self, import_name: str, root_path: Optional[str] = None, url_prefix: Optional[str] = None, **opts):
+    def __init__(self, import_name: str, root_path: str | None = None, url_prefix: str | None = None, **opts):
         self.import_name = import_name
         #: init debug var
         self.debug = os.environ.get("EMMETT_RUN_ENV") == "true"
@@ -278,16 +277,16 @@ class App:
         #: init the configuration
         self.config = self.config_class(self)
         #: init languages
-        self._languages: List[str] = []
-        self._languages_set: Set[str] = set()
-        self._language_default: Optional[str] = None
+        self._languages: list[str] = []
+        self._languages_set: set[str] = set()
+        self._language_default: str | None = None
         self._language_force_on_url = False
         #: init routing
-        self._pipeline: List[Pipe] = []
+        self._pipeline: list[Pipe] = []
         self._init_routers(url_prefix)
         self._asgi_handlers = {}
         self._rsgi_handlers = {}
-        self.error_handlers: Dict[int, Callable[[], Awaitable[str]]] = {}
+        self.error_handlers: dict[int, Callable[[], Awaitable[str]]] = {}
         self._init_handlers()
         #: init logger
         self._logger = None
@@ -295,11 +294,11 @@ class App:
         #: init extensions
         self.ext: sdict[str, Extension] = sdict()
         self._extensions_env: sdict[str, Any] = sdict()
-        self._extensions_listeners: Dict[str, List[Callable[..., Any]]] = {
+        self._extensions_listeners: dict[str, list[Callable[..., Any]]] = {
             str(element): [] for element in self.signals_class
         }
         #: finalise
-        self._modules: Dict[str, AppModule] = {}
+        self._modules: dict[str, AppModule] = {}
         self._register_with_ctx()
 
     def _configure_paths(self, root_path, opts):
@@ -335,16 +334,16 @@ class App:
         return rv
 
     @property
-    def languages(self) -> List[str]:
+    def languages(self) -> list[str]:
         return self._languages
 
     @languages.setter
-    def languages(self, value: List[str]):
+    def languages(self, value: list[str]):
         self._languages = value
         self._languages_set = set(self._languages)
 
     @property
-    def language_default(self) -> Optional[str]:
+    def language_default(self) -> str | None:
         return self._language_default
 
     @language_default.setter
@@ -363,25 +362,25 @@ class App:
         self._configure_handlers()
 
     @property
-    def pipeline(self) -> List[Pipe]:
+    def pipeline(self) -> list[Pipe]:
         return self._pipeline
 
     @pipeline.setter
-    def pipeline(self, pipes: List[Pipe]):
+    def pipeline(self, pipes: list[Pipe]):
         self._pipeline = pipes
         self._router_http.pipeline = self._pipeline
         self._router_ws.pipeline = self._pipeline
 
     def route(
         self,
-        paths: Optional[Union[str, List[str]]] = None,
-        name: Optional[str] = None,
-        pipeline: Optional[List[Pipe]] = None,
-        schemes: Optional[Union[str, List[str]]] = None,
-        hostname: Optional[str] = None,
-        methods: Optional[Union[str, List[str]]] = None,
-        prefix: Optional[str] = None,
-        cache: Optional[RouteCacheRule] = None,
+        paths: str | list[str] | None = None,
+        name: str | None = None,
+        pipeline: list[Pipe] | None = None,
+        schemes: str | list[str] | None = None,
+        hostname: str | None = None,
+        methods: str | list[str] | None = None,
+        prefix: str | None = None,
+        cache: RouteCacheRule | None = None,
         output: str = "auto",
     ) -> RoutingCtx:
         if callable(paths):
@@ -400,12 +399,12 @@ class App:
 
     def websocket(
         self,
-        paths: Optional[Union[str, List[str]]] = None,
-        name: Optional[str] = None,
-        pipeline: Optional[List[Pipe]] = None,
-        schemes: Optional[Union[str, List[str]]] = None,
-        hostname: Optional[str] = None,
-        prefix: Optional[str] = None,
+        paths: str | list[str] | None = None,
+        name: str | None = None,
+        pipeline: list[Pipe] | None = None,
+        schemes: str | list[str] | None = None,
+        hostname: str | None = None,
+        prefix: str | None = None,
     ) -> RoutingCtx:
         if callable(paths):
             raise SyntaxError("Use @websocket(), not @websocket.")
@@ -450,7 +449,7 @@ class App:
             self._extensions_listeners[signal].append(listener)
 
     #: Add an extension to application
-    def use_extension(self, ext_cls: Type[ExtensionType]) -> ExtensionType:
+    def use_extension(self, ext_cls: type[ExtensionType]) -> ExtensionType:
         if not issubclass(ext_cls, Extension):
             raise RuntimeError(f"{ext_cls.__name__} is an invalid extension")
         ext_env, ext_config = self.__init_extension(ext_cls)
@@ -479,14 +478,14 @@ class App:
         self,
         import_name: str,
         name: str,
-        static_folder: Optional[str] = None,
-        static_path: Optional[str] = None,
-        url_prefix: Optional[str] = None,
-        hostname: Optional[str] = None,
-        cache: Optional[RouteCacheRule] = None,
-        root_path: Optional[str] = None,
-        pipeline: Optional[List[Pipe]] = None,
-        module_class: Optional[Type[AppModule]] = None,
+        static_folder: str | None = None,
+        static_path: str | None = None,
+        url_prefix: str | None = None,
+        hostname: str | None = None,
+        cache: RouteCacheRule | None = None,
+        root_path: str | None = None,
+        pipeline: list[Pipe] | None = None,
+        module_class: type[AppModule] | None = None,
         **kwargs: Any,
     ) -> AppModule:
         module_class = module_class or self.modules_class
@@ -516,13 +515,13 @@ class AppModuleGroup:
         self,
         import_name: str,
         name: str,
-        static_folder: Optional[str] = None,
-        static_path: Optional[str] = None,
-        url_prefix: Optional[str] = None,
-        hostname: Optional[str] = None,
-        cache: Optional[RouteCacheRule] = None,
-        root_path: Optional[str] = None,
-        module_class: Optional[Type[AppModule]] = None,
+        static_folder: str | None = None,
+        static_path: str | None = None,
+        url_prefix: str | None = None,
+        hostname: str | None = None,
+        cache: RouteCacheRule | None = None,
+        root_path: str | None = None,
+        module_class: type[AppModule] | None = None,
         **kwargs: Any,
     ) -> AppModulesGrouped:
         module_class = module_class or AppModule
@@ -539,21 +538,19 @@ class AppModuleGroup:
             opts=kwargs,
         )
 
-    def route(
-        self, paths: Optional[Union[str, List[str]]] = None, name: Optional[str] = None, **kwargs
-    ) -> RoutingCtxGroup:
+    def route(self, paths: str | list[str] | None = None, name: str | None = None, **kwargs) -> RoutingCtxGroup:
         return RoutingCtxGroup([mod.route(paths=paths, name=name, **kwargs) for mod in self.modules])
 
-    def websocket(self, paths: Optional[Union[str, List[str]]] = None, name: Optional[str] = None, **kwargs):
+    def websocket(self, paths: str | list[str] | None = None, name: str | None = None, **kwargs):
         return RoutingCtxGroup([mod.websocket(paths=paths, name=name, **kwargs) for mod in self.modules])
 
 
 class AppModulesGrouped(AppModuleGroup):
     @property
-    def pipeline(self) -> List[List[Pipe]]:
+    def pipeline(self) -> list[list[Pipe]]:
         return [module.pipeline for module in self.modules]
 
     @pipeline.setter
-    def pipeline(self, pipeline: List[Pipe]):
+    def pipeline(self, pipeline: list[Pipe]):
         for module in self.modules:
             module.pipeline = pipeline

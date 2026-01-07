@@ -1,5 +1,6 @@
 import re
-from typing import BinaryIO, Dict, Iterator, MutableMapping, Optional, Tuple, Union
+from collections.abc import Iterator, MutableMapping
+from typing import BinaryIO
 
 from ..._io import loop_copyfileobj
 
@@ -10,7 +11,7 @@ regex_client = re.compile(r"[\w\-:]+(\.[\w\-]+)*\.?")
 class ResponseHeaders(MutableMapping[str, str]):
     __slots__ = ["_data"]
 
-    def __init__(self, data: Optional[Dict[str, str]] = None):
+    def __init__(self, data: dict[str, str] | None = None):
         self._data = data or {}
 
     __hash__ = None  # type: ignore
@@ -28,25 +29,21 @@ class ResponseHeaders(MutableMapping[str, str]):
         return key.lower() in self._data
 
     def __iter__(self) -> Iterator[str]:
-        for key in self._data.keys():
-            yield key
+        yield from self._data.keys()
 
     def __len__(self) -> int:
         return len(self._data)
 
-    def items(self) -> Iterator[Tuple[str, str]]:  # type: ignore
-        for key, value in self._data.items():
-            yield key, value
+    def items(self) -> Iterator[tuple[str, str]]:  # type: ignore
+        yield from self._data.items()
 
     def keys(self) -> Iterator[str]:  # type: ignore
-        for key in self._data.keys():
-            yield key
+        yield from self._data.keys()
 
     def values(self) -> Iterator[str]:  # type: ignore
-        for value in self._data.values():
-            yield value
+        yield from self._data.values()
 
-    def update(self, data: Dict[str, str]):  # type: ignore
+    def update(self, data: dict[str, str]):  # type: ignore
         self._data.update(data)
 
 
@@ -66,7 +63,7 @@ class FileStorage:
     def size(self):
         return self.file.content_length
 
-    async def save(self, destination: Union[BinaryIO, str], buffer_size: int = 16384):
+    async def save(self, destination: BinaryIO | str, buffer_size: int = 16384):
         close_destination = False
         if isinstance(destination, str):
             destination = open(destination, "wb")

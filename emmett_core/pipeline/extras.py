@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 from ..ctx import Current
 from ..http.helpers import redirect
@@ -62,7 +62,7 @@ class StreamPipe(Pipe):
     _current: Current
 
     def __init__(
-        self, status: int = 200, headers: Dict[str, str] = {}, cookies: Dict[str, Any] = {}, item_wrapper: Any = None
+        self, status: int = 200, headers: dict[str, str] = {}, cookies: dict[str, Any] = {}, item_wrapper: Any = None
     ):
         self.response_status = status
         self.response_headers = headers
@@ -83,8 +83,8 @@ class SSEPipe(StreamPipe):
     def __init__(
         self,
         status: int = 200,
-        headers: Dict[str, str] = {},
-        cookies: Dict[str, Any] = {},
+        headers: dict[str, str] = {},
+        cookies: dict[str, Any] = {},
     ):
         self._json_encoder = Serializers.get_for("json")
         default_headers = {"content-type": "text/event-stream"}

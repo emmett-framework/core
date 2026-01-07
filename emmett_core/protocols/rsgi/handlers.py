@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import re
-from typing import Awaitable, Callable, Optional, Tuple
+from collections.abc import Awaitable, Callable
 
 from ...ctx import RequestContext, WSContext
 from ...http.response import HTTPFileResponse, HTTPResponse, HTTPStringResponse
@@ -83,7 +83,7 @@ class HTTPHandler(RequestHandler):
         path = path[self.router._prefix_main_len :] or "/"
         return self.static_handler(scope, protocol, path)
 
-    def _static_lang_matcher(self, path: str) -> Tuple[Optional[str], Optional[str]]:
+    def _static_lang_matcher(self, path: str) -> tuple[str | None, str | None]:
         match = REGEX_STATIC_LANG.match(path)
         if match:
             lang, mname, version, file_name = match.group("l", "m", "v", "f")
@@ -100,7 +100,7 @@ class HTTPHandler(RequestHandler):
             return static_file, version
         return None, None
 
-    def _static_nolang_matcher(self, path: str) -> Tuple[Optional[str], Optional[str]]:
+    def _static_nolang_matcher(self, path: str) -> tuple[str | None, str | None]:
         if path.startswith("/static/"):
             mname, version, file_name = REGEX_STATIC.match(path).group("m", "v", "f")
             if mname:

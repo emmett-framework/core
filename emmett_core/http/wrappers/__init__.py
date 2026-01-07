@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import re
 from abc import ABCMeta, abstractmethod
+from collections.abc import Mapping
 from http.cookies import SimpleCookie
-from typing import Any, List, Mapping, Type, TypeVar, Union
+from typing import Any, TypeVar
 
 from ...datastructures import sdict
 from ...utils import cachedprop
@@ -40,7 +41,7 @@ class IngressWrapper(Wrapper, metaclass=ABCMeta):
     def host(self) -> str:
         return self.headers.get("host")
 
-    def __parse_accept_header(self, value: str, cls: Type[AcceptType]) -> AcceptType:
+    def __parse_accept_header(self, value: str, cls: type[AcceptType]) -> AcceptType:
         if not value:
             return cls(None)
         result = []
@@ -66,7 +67,7 @@ class IngressWrapper(Wrapper, metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def query_params(self) -> sdict[str, Union[str, List[str]]]: ...
+    def query_params(self) -> sdict[str, str | list[str]]: ...
 
 
 class EgressWrapper(Wrapper, metaclass=ABCMeta):

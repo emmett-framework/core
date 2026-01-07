@@ -1,11 +1,11 @@
-from typing import Any, Dict
+from typing import Any
 
 from ..http.wrappers.response import ServerSentEvent
 from ..routing.router import RouterMixin
 from .extras import JSONPipe, RequirePipe, SSEPipe, StreamPipe
 
 
-class PipeBuilder(object):
+class PipeBuilder:
     def build_pipe(self):
         raise NotImplementedError
 
@@ -60,8 +60,8 @@ class stream(PipeBuilder):
     def __init__(
         self,
         status: int = 200,
-        headers: Dict[str, str] = {},
-        cookies: Dict[str, Any] = {},
+        headers: dict[str, str] = {},
+        cookies: dict[str, Any] = {},
     ):
         self.response_status = status
         self.response_headers = headers

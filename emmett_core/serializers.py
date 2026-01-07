@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from functools import partial
-from typing import Any, Callable, Dict, Union
+from typing import Any
 
 from ._imports import orjson, rapidjson
 
@@ -26,7 +27,7 @@ _json_safe_table = {"u2028": [r"\u2028", "\\u2028"], "u2029": [r"\u2029", "\\u20
 
 
 class Serializers:
-    _registry_: Dict[str, Callable[[Any], Union[bytes, str]]] = {}
+    _registry_: dict[str, Callable[[Any], bytes | str]] = {}
 
     @classmethod
     def register_for(cls, target):

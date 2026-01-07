@@ -1,5 +1,5 @@
 import asyncio
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from ...http.response import HTTPBytesResponse, HTTPResponse
 from ...http.wrappers.response import ResponseStream as _ResponseStream

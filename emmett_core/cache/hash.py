@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Callable, Dict, List, Tuple
+from collections.abc import Callable
+from typing import Any
 
 
 hashlib_sha1 = lambda s: hashlib.sha1(bytes(s, "utf8"))  # noqa: S324
@@ -17,7 +18,7 @@ class CacheHashMixin:
     def _hash_component(self, key: str, data: Any) -> str:
         return "".join([key, "{", repr(data), "}"])
 
-    def _build_hash(self, data: Dict[str, Any]) -> str:
+    def _build_hash(self, data: dict[str, Any]) -> str:
         components = []
         for key, strategy in self.strategies.items():
             components.append(self._hash_component(key, strategy(data[key])))
@@ -27,5 +28,5 @@ class CacheHashMixin:
         return self.key + ":" + self._build_hash(ctx)  # type: ignore
 
     @staticmethod
-    def dict_strategy(data: Dict[str, Any]) -> List[Tuple[str, Any]]:
+    def dict_strategy(data: dict[str, Any]) -> list[tuple[str, Any]]:
         return [(key, data[key]) for key in sorted(data)]
