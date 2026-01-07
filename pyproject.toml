@@ -11,7 +11,6 @@ classifiers = [
     'Operating System :: Microsoft :: Windows',
     'Operating System :: POSIX :: Linux',
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
@@ -33,7 +32,7 @@ dynamic = [
     'version',
 ]
 
-requires-python = '>=3.9'
+requires-python = '>=3.10'
 dependencies = []
 
 [project.optional-dependencies]
@@ -93,6 +92,7 @@ extend-select = [
     'RUF100', # ruff (unused noqa)
     'S',      # flake8-bandit
     'W',      # pycodestyle
+    'UP',     # pyupgrade
 ]
 extend-ignore = [
     'B006', # mutable function args are fine
