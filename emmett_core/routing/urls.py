@@ -1,4 +1,17 @@
+import re
 from urllib.parse import quote as uquote
+
+
+_regex_host = re.compile(r"^[^/\?#]*$")
+
+
+def _safe_host_from_current(host):
+    try:
+        if match := _regex_host.fullmatch(host):
+            assert match.string
+            return match.string
+    except Exception:
+        raise RuntimeError("cannot build url(...) with current request hostname")
 
 
 class UrlBuilder:
@@ -155,7 +168,7 @@ class Url:
             if host is None:
                 if not hasattr(self.current, "request"):
                     raise RuntimeError(f'cannot build url("{path}",...) without current request')
-                host = self.current.request.host
+                host = _safe_host_from_current(self.current.request.host)
         # add signature
         if sign:
             if "_signature" in params:
@@ -222,7 +235,7 @@ class Url:
             if host is None:
                 if not hasattr(self.current, "request"):
                     raise RuntimeError(f'cannot build url("{path}",...) without current request')
-                host = self.current.request.host
+                host = _safe_host_from_current(self.current.request.host)
         return builder.url(scheme, host, lang, args, params)
 
     def __call__(self, *args, **kwargs):
