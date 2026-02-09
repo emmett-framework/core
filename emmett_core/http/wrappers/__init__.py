@@ -61,7 +61,10 @@ class IngressWrapper(Wrapper, metaclass=ABCMeta):
     def cookies(self) -> SimpleCookie:
         cookies: SimpleCookie = SimpleCookie()
         for cookie in self.headers.get("cookie", "").split(";"):
-            cookies.load(cookie)
+            try:
+                cookies.load(cookie)
+            except Exception:
+                continue
         return cookies
 
     @property
