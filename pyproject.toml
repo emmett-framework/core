@@ -107,6 +107,7 @@ extend-ignore = [
     'N818', # leave to us exceptions naming
     'S101', # assert is fine
     'S110', # pass on exceptions is fine
+    'S112',
     'UP031',
     'UP038',
 ]
