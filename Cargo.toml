@@ -41,10 +41,10 @@ encoding = "=0.2"
 http = "=1.4"
 httparse = "=1.10"
 mime = "=0.3"
-pyo3 = { version = "=0.27", features = ["anyhow", "extension-module", "generate-import-lib"] }
+pyo3 = { version = "=0.28", features = ["anyhow", "extension-module", "generate-import-lib"] }
 regex = "=1.12"
 ring = "=0.17"
-tempfile = "=3.24"
+tempfile = "=3.27"
 textnonce = "=1.0"
 
 [profile.release]

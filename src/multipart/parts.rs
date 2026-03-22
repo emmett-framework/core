@@ -97,9 +97,9 @@ impl FilePart {
 
 impl Drop for FilePart {
     fn drop(&mut self) {
-        if self.tempdir.is_some() {
+        if let Some(tempdir) = &self.tempdir {
             let _ = std::fs::remove_file(&self.path);
-            let _ = std::fs::remove_dir(self.tempdir.as_ref().unwrap());
+            let _ = std::fs::remove_dir(tempdir);
         }
     }
 }
