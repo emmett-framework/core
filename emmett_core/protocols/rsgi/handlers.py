@@ -56,7 +56,7 @@ class HTTPHandler(RequestHandler):
 
     async def __call__(self, scope, protocol):
         http = await self.pre_handler(scope, protocol, scope.path)
-        if coro := http.rsgi(protocol):
+        if coro := http.rsgi(scope, protocol):
             if self.app.config.response_timeout is None:
                 await coro
                 return
