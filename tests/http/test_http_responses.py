@@ -81,7 +81,7 @@ async def test_http_iter(rsgi_proto):
         yield b"test"
 
     http = HTTPIterResponse(iterator())
-    await http.rsgi(rsgi_proto)
+    await http.rsgi(None, rsgi_proto)
     rsgi_proto.data.seek(0)
 
     assert rsgi_proto.code == 200
@@ -95,7 +95,7 @@ async def test_http_aiter(rsgi_proto):
         yield b"test"
 
     http = HTTPAsyncIterResponse(iterator())
-    await http.rsgi(rsgi_proto)
+    await http.rsgi(None, rsgi_proto)
     rsgi_proto.data.seek(0)
 
     assert rsgi_proto.code == 200
