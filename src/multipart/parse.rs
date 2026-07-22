@@ -81,7 +81,7 @@ impl MultiPartParser {
                     let mut buf = Vec::new();
                     let mut chain = self.buffer.chain(&mut *reader);
                     let ret = chain.stream_until_token($boundary, &mut buf)?;
-                    self.buffer.truncate(0);
+                    self.buffer.clear();
                     self.buffer.extend(buf);
                     ret
                 };
@@ -118,7 +118,7 @@ impl MultiPartParser {
                     // we buffered previous contents, chain the two reads
                     let mut chain = self.buffer.chain(&mut *reader);
                     let ret = chain.stream_until_token($boundary, $target)?;
-                    self.buffer.truncate(0);
+                    self.buffer.clear();
                     ret
                 };
                 if !found {
@@ -167,7 +167,7 @@ impl MultiPartParser {
                     return Ok(());
                 }
 
-                self.buffer.truncate(0);
+                self.buffer.clear();
                 self.state = MultiPartParserState::Headers;
             }
 
@@ -198,7 +198,7 @@ impl MultiPartParser {
                 };
 
                 // clean the buffer
-                self.buffer.truncate(0);
+                self.buffer.clear();
 
                 let mut is_file = false;
                 let mut missing_mime = false;

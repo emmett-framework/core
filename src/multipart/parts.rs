@@ -89,7 +89,7 @@ impl FilePart {
     #[inline]
     pub fn content_length(&self) -> Option<u64> {
         if let Some(cl) = self.headers.get(header::CONTENT_LENGTH) {
-            return cl.to_str().unwrap_or("0").parse::<u64>().map(Some).unwrap_or(None);
+            return cl.to_str().unwrap_or("0").parse::<u64>().ok();
         }
         None
     }
