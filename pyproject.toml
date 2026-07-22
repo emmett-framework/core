@@ -50,7 +50,7 @@ Source = 'https://github.com/emmett-framework/core'
 
 [dependency-groups]
 build = [
-    'maturin~=1.8',
+    'maturin~=1.13.0',
 ]
 lint = [
     'ruff~=0.9',
@@ -67,7 +67,7 @@ all = [
 ]
 
 [build-system]
-requires = ['maturin>=1.8.0,<2']
+requires = ['maturin>=1.8.0,<1.14.0']
 build-backend = 'maturin'
 
 [tool.maturin]
