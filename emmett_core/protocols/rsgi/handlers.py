@@ -92,24 +92,29 @@ class HTTPHandler(RequestHandler):
                 spath = mod._static_path if mod else self.app.static_path
             else:
                 spath = self.app.static_path
-            static_file = os.path.join(spath, file_name)
+            static_file = os.path.realpath(os.path.join(spath, file_name))
             if lang:
-                lang_file = os.path.join(spath, lang, file_name)
+                lang_file = os.path.realpath(os.path.join(spath, lang, file_name))
                 if os.path.exists(lang_file):
                     static_file = lang_file
+            if not static_file.startswith(spath):
+                return None, None
             return static_file, version
         return None, None
 
     def _static_nolang_matcher(self, path: str) -> tuple[str | None, str | None]:
         if path.startswith("/static/"):
             mname, version, file_name = REGEX_STATIC.match(path).group("m", "v", "f")
-            if mname:
+            if mname and file_name:
                 mod = self.app._modules.get(mname[2:-3])
-                static_file = os.path.join(mod._static_path, file_name) if mod else None
+                spath = mod._static_path if mod else self.app.static_path
             elif file_name:
-                static_file = os.path.join(self.app.static_path, file_name)
+                spath = self.app.static_path
             else:
-                static_file = None
+                return None, None
+            static_file = os.path.realpath(os.path.join(spath, file_name))
+            if not static_file.startswith(spath):
+                return None, None
             return static_file, version
         return None, None
 

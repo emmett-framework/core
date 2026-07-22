@@ -195,7 +195,7 @@ class AppModule:
             root_path = get_root_path(self.import_name)
         self.root_path = root_path
         if static_path and not static_path.startswith("/"):
-            static_path = os.path.join(self.root_path, static_path)
+            static_path = os.path.realpath(os.path.join(self.root_path, static_path))
         self._static_path = (
             os.path.join(self.app.static_path, static_folder)
             if static_folder
@@ -305,7 +305,7 @@ class App:
         if root_path is None:
             root_path = get_root_path(self.import_name)
         self.root_path = root_path
-        self.static_path = os.path.join(self.root_path, "static")
+        self.static_path = os.path.realpath(os.path.join(self.root_path, "static"))
         create_missing_app_folders(self)
 
     def _init_routers(self, url_prefix):
