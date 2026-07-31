@@ -1,17 +1,17 @@
 use anyhow::Result;
-use buf_read_ext::BufReadExt;
 use http::{
     HeaderName, HeaderValue,
     header::{self, HeaderMap},
 };
+use memchr::memmem::Finder;
 use mime::{self, Mime};
 use pyo3::{IntoPyObjectExt, exceptions::PyStopIteration, prelude::*, types::PyBytes};
 use std::{
     borrow::Cow,
     collections::VecDeque,
-    io::{BufRead, Cursor, Read, Write},
+    io::Write,
     mem,
-    sync::Mutex,
+    sync::{LazyLock, Mutex},
 };
 
 use super::{
@@ -23,8 +23,8 @@ use super::{
 #[derive(Default)]
 enum MultiPartParserState {
     #[default]
-    Clean,
-    Termination,
+    BoundaryTail,
+    LineEnd,
     Headers,
     Value(Part),
     File(FilePart),
@@ -32,258 +32,254 @@ enum MultiPartParserState {
     Consumed,
 }
 
+static FINDER_CRLF: LazyLock<Finder<'static>> = LazyLock::new(|| Finder::new(b"\r\n"));
+static FINDER_CRLF2: LazyLock<Finder<'static>> = LazyLock::new(|| Finder::new(b"\r\n\r\n"));
+
+struct Finders {
+    delimiter: Finder<'static>,
+    crlf: &'static Finder<'static>,
+    crlf2: &'static Finder<'static>,
+}
+
 struct MultiPartParser {
-    boundaries: (Vec<u8>, Vec<u8>, Vec<u8>),
+    finders: Finders,
     encoding: String,
     max_part_size: usize,
     state: MultiPartParserState,
+    carry: Vec<u8>,
     buffer: Vec<u8>,
-    bufshift: usize,
-    read_size: usize,
     stack: VecDeque<Node>,
 }
 
+fn stream_find(
+    carry: &mut Vec<u8>,
+    finder: &Finder<'static>,
+    data: &[u8],
+    sink: &mut dyn FnMut(&[u8]) -> Result<()>,
+) -> Result<Option<usize>> {
+    let token_len = finder.needle().len();
+
+    if !carry.is_empty() {
+        // look for a match starting within carried bytes
+        let border_take = std::cmp::min(data.len(), token_len - 1);
+        let mut border = Vec::with_capacity(carry.len() + border_take);
+        border.extend_from_slice(carry);
+        border.extend_from_slice(&data[..border_take]);
+        match finder.find(&border) {
+            Some(pos) if pos < carry.len() => {
+                sink(&carry[..pos])?;
+                let consumed = pos + token_len - carry.len();
+                carry.clear();
+                return Ok(Some(consumed));
+            }
+            _ => {}
+        }
+        if data.len() < token_len - 1 {
+            // not enough bytes to rule out a token spanning beyond `data`:
+            // accumulate, streaming out any decidable excess
+            carry.extend_from_slice(data);
+            if carry.len() >= token_len {
+                let flush = carry.len() - (token_len - 1);
+                sink(&carry[..flush])?;
+                carry.drain(..flush);
+            }
+            return Ok(None);
+        }
+        // the border check covered any match involving carried bytes: flush them
+        sink(carry)?;
+        carry.clear();
+    }
+
+    match finder.find(data) {
+        Some(pos) => {
+            sink(&data[..pos])?;
+            Ok(Some(pos + token_len))
+        }
+        None => {
+            let keep = std::cmp::min(data.len(), token_len - 1);
+            sink(&data[..data.len() - keep])?;
+            carry.extend_from_slice(&data[data.len() - keep..]);
+            Ok(None)
+        }
+    }
+}
+
 impl MultiPartParser {
-    fn new(boundaries: (Vec<u8>, Vec<u8>, Vec<u8>), encoding: String, max_part_size: usize) -> Self {
+    fn new(boundary: &[u8], encoding: String, max_part_size: usize) -> Self {
+        let mut delimiter = Vec::with_capacity(2 + boundary.len());
+        delimiter.extend_from_slice(b"\r\n");
+        delimiter.extend_from_slice(boundary);
+
         Self {
-            boundaries,
+            finders: Finders {
+                delimiter: Finder::new(&delimiter).into_owned(),
+                crlf: &FINDER_CRLF,
+                crlf2: &FINDER_CRLF2,
+            },
             encoding,
             max_part_size,
-            state: MultiPartParserState::Clean,
+            state: MultiPartParserState::BoundaryTail,
+            carry: Vec::new(),
             buffer: Vec::new(),
-            bufshift: 0,
-            read_size: 0,
             stack: VecDeque::new(),
         }
     }
 
-    fn parse_chunk<T>(&mut self, reader: &mut Cursor<T>) -> Result<()>
-    where
-        T: AsRef<[u8]>,
-    {
-        macro_rules! buffered_read {
-            ($boundary:expr) => {{
-                let peeker = reader.fill_buf()?;
-                if peeker.is_empty() {
-                    return Ok(());
-                }
-
-                // if the chunk is not long enough to check for boundary, buffer
-                if (peeker.len() + self.buffer.len()) < $boundary.len() {
-                    reader.read_to_end(&mut self.buffer)?;
-                    return Ok(());
-                }
-
-                let (readn, found) = if self.buffer.is_empty() {
-                    reader.stream_until_token($boundary, &mut self.buffer)?
-                } else {
-                    // we buffered previous contents, chain the two reads
-                    let mut buf = Vec::new();
-                    let mut chain = self.buffer.chain(&mut *reader);
-                    let ret = chain.stream_until_token($boundary, &mut buf)?;
-                    self.buffer.clear();
-                    self.buffer.extend(buf);
-                    ret
-                };
-                if !found {
-                    let bdiff = self.buffer.len() + self.bufshift;
-                    if bdiff < readn {
-                        let shift = readn - bdiff;
-                        self.buffer.extend(&$boundary[..self.bufshift + shift]);
-                        self.bufshift += shift;
-                    } else {
-                        self.bufshift = 0;
-                    }
-                } else {
-                    self.bufshift = 0;
-                }
-                (readn, found)
-            }};
-
-            ($boundary:expr, $target:expr) => {{
-                let peeker = reader.fill_buf()?;
-                if peeker.is_empty() {
-                    return Ok(());
-                }
-
-                // if the chunk is not long enough to check for boundary, buffer
-                if (peeker.len() + self.buffer.len()) < $boundary.len() {
-                    reader.read_to_end(&mut self.buffer)?;
-                    return Ok(());
-                }
-
-                let (readn, found) = if self.buffer.is_empty() {
-                    reader.stream_until_token($boundary, $target)?
-                } else {
-                    // we buffered previous contents, chain the two reads
-                    let mut chain = self.buffer.chain(&mut *reader);
-                    let ret = chain.stream_until_token($boundary, $target)?;
-                    self.buffer.clear();
-                    ret
-                };
-                if !found {
-                    // keep incomplete boundary segment in buffer
-                    let bdiff = $target.len() + self.bufshift;
-                    if bdiff < readn {
-                        let shift = readn - bdiff;
-                        self.buffer.extend(&$boundary[..self.bufshift + shift]);
-                        self.bufshift += shift;
-                    } else {
-                        self.bufshift = 0;
-                    }
-                } else {
-                    self.bufshift = 0;
-                }
-                (readn, found)
-            }};
-        }
-
-        let (lt, ltlt, lt_boundary) = &self.boundaries;
-
+    fn parse_chunk(&mut self, mut data: &[u8]) -> Result<()> {
         loop {
-            if let MultiPartParserState::Clean = self.state {
-                let peeker = reader.fill_buf()?;
-                if (self.buffer.len() + peeker.len()) < 2 {
-                    self.buffer.extend(peeker);
-                    return Ok(());
-                }
-
-                // If the next two lookahead characters are '--', parsing is finished.
-                let mut buf = vec![0; 2];
-                let mut chain = self.buffer.chain(peeker);
-                chain.read_exact(&mut buf)?;
-                if buf.len() >= 2 && &buf[..2] == b"--" {
-                    self.state = MultiPartParserState::Consumed;
-                    return Ok(());
-                }
-
-                self.state = MultiPartParserState::Termination;
+            if data.is_empty() {
+                return Ok(());
             }
 
-            if let MultiPartParserState::Termination = self.state {
-                let (_, found) = buffered_read!(lt);
-
-                if !found {
-                    return Ok(());
+            match &mut self.state {
+                MultiPartParserState::BoundaryTail => {
+                    // two lookahead characters decide between a further part and epilogue
+                    if self.carry.len() + data.len() < 2 {
+                        self.carry.extend_from_slice(data);
+                        return Ok(());
+                    }
+                    let (b0, b1) = match self.carry.len() {
+                        0 => (data[0], data[1]),
+                        _ => (self.carry[0], data[0]),
+                    };
+                    if b0 == b'-' && b1 == b'-' {
+                        self.state = MultiPartParserState::Consumed;
+                        return Ok(());
+                    }
+                    self.state = MultiPartParserState::LineEnd;
                 }
 
-                self.buffer.clear();
-                self.state = MultiPartParserState::Headers;
-            }
-
-            if let MultiPartParserState::Headers = self.state {
-                let (_, found) = buffered_read!(ltlt);
-                if !found {
-                    return Ok(());
+                MultiPartParserState::LineEnd => {
+                    match stream_find(&mut self.carry, self.finders.crlf, data, &mut |_| Ok(()))? {
+                        Some(consumed) => {
+                            data = &data[consumed..];
+                            self.state = MultiPartParserState::Headers;
+                        }
+                        None => return Ok(()),
+                    }
                 }
 
-                // Keep the 2 line terminators as httparse will expect it
-                self.buffer.extend(ltlt.iter().copied());
+                MultiPartParserState::Headers => {
+                    let prev_len = self.buffer.len();
+                    self.buffer.extend_from_slice(data);
+                    let search_from = prev_len.saturating_sub(3);
+                    let Some(pos) = self.finders.crlf2.find(&self.buffer[search_from..]) else {
+                        return Ok(());
+                    };
+                    // keep the 2 line terminators as httparse will expect it
+                    let headers_end = search_from + pos + 4;
+                    let consumed = headers_end - prev_len;
+                    self.buffer.truncate(headers_end);
 
-                let part_headers = {
-                    let mut header_memory = [httparse::EMPTY_HEADER; 4];
-                    match httparse::parse_headers(&self.buffer, &mut header_memory) {
-                        Ok(httparse::Status::Complete((_, raw_headers))) => {
-                            let mut headers = HeaderMap::new();
-                            for header in raw_headers {
-                                let name = HeaderName::try_from(header.name)?;
-                                let value = HeaderValue::from_bytes(header.value)?;
-                                headers.insert(name, value);
+                    let part_headers = {
+                        let mut header_memory = [httparse::EMPTY_HEADER; 4];
+                        match httparse::parse_headers(&self.buffer, &mut header_memory) {
+                            Ok(httparse::Status::Complete((_, raw_headers))) => {
+                                let mut headers = HeaderMap::new();
+                                for header in raw_headers {
+                                    let name = HeaderName::try_from(header.name)?;
+                                    let value = HeaderValue::from_bytes(header.value)?;
+                                    headers.insert(name, value);
+                                }
+                                Ok::<HeaderMap, anyhow::Error>(headers)
                             }
-                            Ok::<HeaderMap, anyhow::Error>(headers)
+                            Ok(httparse::Status::Partial) => Err(error_parsing!("incomplete headers")),
+                            Err(_) => Err(error_parsing!("bad headers")),
+                        }?
+                    };
+
+                    self.buffer.clear();
+                    data = &data[consumed..];
+
+                    let mut is_file = false;
+                    let mut missing_mime = false;
+                    if let Some(cd) = part_headers.get(header::CONTENT_DISPOSITION) {
+                        let cds = charset_decode(&self.encoding, cd.as_bytes())?;
+                        let cd_params = cds.split_once(';').unwrap_or(("", "")).1;
+
+                        match format!("*/*;{cd_params}").parse::<Mime>() {
+                            Ok(mime) => {
+                                is_file = mime.get_param("filename").is_some();
+                            }
+                            Err(_) => {
+                                missing_mime = true;
+                            }
                         }
-                        Ok(httparse::Status::Partial) => Err(error_parsing!("incomplete headers")),
-                        Err(_) => Err(error_parsing!("bad headers")),
-                    }?
-                };
+                    }
 
-                // clean the buffer
-                self.buffer.clear();
-
-                let mut is_file = false;
-                let mut missing_mime = false;
-                if let Some(cd) = part_headers.get(header::CONTENT_DISPOSITION) {
-                    let cds = charset_decode(&self.encoding, cd.as_bytes())?;
-                    let cd_params = cds.split_once(';').unwrap_or(("", "")).1;
-
-                    match format!("*/*;{cd_params}").parse::<Mime>() {
-                        Ok(mime) => {
-                            is_file = mime.get_param("filename").is_some();
+                    match (is_file, missing_mime) {
+                        (true, _) => {
+                            let filepart = FilePart::new(part_headers, &self.encoding)?;
+                            self.state = MultiPartParserState::File(filepart);
                         }
-                        Err(_) => {
-                            missing_mime = true;
+                        (false, true) => {
+                            self.state = MultiPartParserState::Skip;
+                        }
+                        (false, false) => {
+                            let part = Part::new(part_headers, &self.encoding)?;
+                            self.state = MultiPartParserState::Value(part);
                         }
                     }
                 }
 
-                match (is_file, missing_mime) {
-                    (true, _) => {
-                        let filepart = FilePart::new(part_headers, &self.encoding)?;
-                        self.state = MultiPartParserState::File(filepart);
+                MultiPartParserState::Value(part) => {
+                    let value = &mut part.value;
+                    let found = stream_find(&mut self.carry, &self.finders.delimiter, data, &mut |bytes| {
+                        value.extend_from_slice(bytes);
+                        Ok(())
+                    })?;
+                    if part.value.len() >= self.max_part_size {
+                        return Err(error_size!());
                     }
-                    (false, true) => {
-                        self.state = MultiPartParserState::Skip;
+
+                    match found {
+                        Some(consumed) => {
+                            data = &data[consumed..];
+                            match mem::take(&mut self.state) {
+                                MultiPartParserState::Value(part) => self.stack.push_back(Node::Part(part)),
+                                _ => unreachable!(),
+                            }
+                        }
+                        None => return Ok(()),
                     }
-                    (false, false) => {
-                        let part = Part::new(part_headers, &self.encoding)?;
-                        self.state = MultiPartParserState::Value(part);
+                }
+
+                MultiPartParserState::File(filepart) => {
+                    let file = filepart.file.as_mut().expect("uninitialized file part");
+                    let mut written = 0;
+                    let found = stream_find(&mut self.carry, &self.finders.delimiter, data, &mut |bytes| {
+                        written += bytes.len();
+                        file.write_all(bytes).map_err(Into::into)
+                    })?;
+                    filepart.size = Some(filepart.size.unwrap_or(0) + written);
+
+                    match found {
+                        Some(consumed) => {
+                            data = &data[consumed..];
+                            match mem::take(&mut self.state) {
+                                MultiPartParserState::File(mut part) => {
+                                    // potentially allow py threads?
+                                    part.file.as_mut().unwrap().flush()?;
+                                    self.stack.push_back(Node::File(part));
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        None => return Ok(()),
                     }
                 }
-            }
 
-            if let MultiPartParserState::Value(part) = &mut self.state {
-                let (read, found) = buffered_read!(lt_boundary, &mut part.value);
-                self.read_size += read;
-                if self.read_size >= self.max_part_size {
-                    return Err(error_size!());
-                }
-
-                if !found {
-                    return Ok(());
-                }
-
-                let state = mem::take(&mut self.state);
-                match state {
-                    MultiPartParserState::Value(part) => {
-                        self.stack.push_back(Node::Part(part));
-                        self.read_size = 0;
+                MultiPartParserState::Skip => {
+                    match stream_find(&mut self.carry, &self.finders.delimiter, data, &mut |_| Ok(()))? {
+                        Some(consumed) => {
+                            data = &data[consumed..];
+                            self.state = MultiPartParserState::BoundaryTail;
+                        }
+                        None => return Ok(()),
                     }
-                    _ => unreachable!(),
-                }
-            }
-
-            if let MultiPartParserState::File(filepart) = &mut self.state {
-                let mut buf = Vec::new();
-                let (read, found) = buffered_read!(lt_boundary, &mut buf);
-                filepart
-                    .file
-                    .as_mut()
-                    .expect("uninitialized file part")
-                    .write_all(&buf)?;
-                filepart.size = Some(filepart.size.unwrap_or(0) + read);
-
-                if !found {
-                    return Ok(());
                 }
 
-                let state = mem::take(&mut self.state);
-                match state {
-                    MultiPartParserState::File(mut part) => {
-                        // potentially allow py threads?
-                        part.file.as_mut().unwrap().flush()?;
-                        self.stack.push_back(Node::File(part));
-                    }
-                    _ => unreachable!(),
-                }
-            }
-
-            if let MultiPartParserState::Skip = &mut self.state {
-                let (_, found) = buffered_read!(lt_boundary);
-                if !found {
-                    return Ok(());
-                }
-
-                mem::take(&mut self.state);
+                MultiPartParserState::Consumed => return Ok(()),
             }
         }
     }
@@ -294,7 +290,8 @@ pub(super) struct MultiPartReader {
     boundary: Vec<u8>,
     encoding: String,
     max_part_size: usize,
-    inner: Mutex<Option<MultiPartParser>>,
+    // NOTE: boxed as `Finder` alignment exceeds the one guaranteed by Python's allocator
+    inner: Mutex<Option<Box<MultiPartParser>>>,
 }
 
 #[pymethods]
@@ -318,35 +315,23 @@ impl MultiPartReader {
             if matches!(inner.state, MultiPartParserState::Consumed) {
                 return Ok(());
             }
-            let mut reader = Cursor::new(data);
-            return inner.parse_chunk(&mut reader);
+            return inner.parse_chunk(&data);
         }
 
-        let mut buf = Vec::new();
-        let mut reader = Cursor::new(data);
-        let (_, found) = reader.stream_until_token(&self.boundary, &mut buf)?;
-        if !found {
+        let Some(pos) = Finder::new(&self.boundary).find(&data) else {
             return Err(error_parsing!("EOF before first boundary"));
+        };
+        let rest = &data[pos + self.boundary.len()..];
+        if rest.len() < 2 || &rest[..2] != b"\r\n" {
+            return Err(error_parsing!("no CrLf after boundary"));
         }
 
-        let read_boundaries = {
-            let peeker = reader.fill_buf()?;
-            if peeker.len() > 1 && &peeker[..2] == b"\r\n" {
-                let mut output = Vec::with_capacity(2 + self.boundary.len());
-                output.push(b'\r');
-                output.push(b'\n');
-                output.extend(self.boundary.clone());
-                (vec![b'\r', b'\n'], vec![b'\r', b'\n', b'\r', b'\n'], output)
-            } else {
-                return Err(error_parsing!("no CrLf after boundary"));
-            }
-        };
-        *guard = Some(MultiPartParser::new(
-            read_boundaries,
+        let parser = guard.insert(Box::new(MultiPartParser::new(
+            &self.boundary,
             self.encoding.clone(),
             self.max_part_size,
-        ));
-        guard.as_mut().unwrap().parse_chunk(&mut reader)
+        )));
+        parser.parse_chunk(rest)
     }
 
     fn contents(&self, py: Python) -> Result<Py<MultiPartContentsIter>> {
@@ -355,7 +340,7 @@ impl MultiPartReader {
         if let Some(mut inner) = guard.take() {
             if !matches!(
                 inner.state,
-                MultiPartParserState::Clean | MultiPartParserState::Consumed
+                MultiPartParserState::BoundaryTail | MultiPartParserState::Consumed
             ) {
                 return Err(error_state!());
             }

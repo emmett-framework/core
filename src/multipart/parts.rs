@@ -61,7 +61,7 @@ impl FilePart {
         let tempdir = Some(path.clone());
         path.push(TextNonce::sized_urlsafe(32).unwrap().into_string());
 
-        let file = BufWriter::with_capacity(131_072, File::create(path.clone())?);
+        let file = BufWriter::with_capacity(8192, File::create(path.clone())?);
         Ok(FilePart {
             headers,
             name,

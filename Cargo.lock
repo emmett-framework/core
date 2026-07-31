@@ -41,12 +41,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b588b76d00fde79687d7646a9b5bdf3cc0f655e0bbd080335a95d7e96f3587da"
 
 [[package]]
-name = "buf-read-ext"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e2c71c44e5bbc64de4ecfac946e05f9bba5cc296ea7bab4d3eda242a3ffa73c"
-
-[[package]]
 name = "bytes"
 version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -130,13 +124,13 @@ version = "1.4.3"
 dependencies = [
  "aes",
  "anyhow",
- "buf-read-ext",
  "cfb-mode",
  "cfb8",
  "ctr",
  "encoding",
  "http",
  "httparse",
+ "memchr",
  "mime",
  "pyo3",
  "regex",
