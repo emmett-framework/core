@@ -22,6 +22,7 @@ use super::{
 
 #[derive(Default)]
 enum MultiPartParserState {
+    Prologue,
     #[default]
     BoundaryTail,
     LineEnd,
@@ -36,6 +37,7 @@ static FINDER_CRLF: LazyLock<Finder<'static>> = LazyLock::new(|| Finder::new(b"\
 static FINDER_CRLF2: LazyLock<Finder<'static>> = LazyLock::new(|| Finder::new(b"\r\n\r\n"));
 
 struct Finders {
+    boundary: Finder<'static>,
     delimiter: Finder<'static>,
     crlf: &'static Finder<'static>,
     crlf2: &'static Finder<'static>,
@@ -112,19 +114,21 @@ impl MultiPartParser {
 
         Self {
             finders: Finders {
+                boundary: Finder::new(boundary).into_owned(),
                 delimiter: Finder::new(&delimiter).into_owned(),
                 crlf: &FINDER_CRLF,
                 crlf2: &FINDER_CRLF2,
             },
             encoding,
             max_part_size,
-            state: MultiPartParserState::BoundaryTail,
+            state: MultiPartParserState::Prologue,
             carry: Vec::new(),
             buffer: Vec::new(),
             stack: VecDeque::new(),
         }
     }
 
+    #[inline(always)]
     fn parse_chunk(&mut self, mut data: &[u8]) -> Result<()> {
         loop {
             if data.is_empty() {
@@ -132,6 +136,17 @@ impl MultiPartParser {
             }
 
             match &mut self.state {
+                MultiPartParserState::Prologue => {
+                    // seek the first boundary, ignoring any preamble
+                    match stream_find(&mut self.carry, &self.finders.boundary, data, &mut |_| Ok(()))? {
+                        Some(consumed) => {
+                            data = &data[consumed..];
+                            self.state = MultiPartParserState::BoundaryTail;
+                        }
+                        None => return Ok(()),
+                    }
+                }
+
                 MultiPartParserState::BoundaryTail => {
                     // two lookahead characters decide between a further part and epilogue
                     if self.carry.len() + data.len() < 2 {
@@ -311,27 +326,18 @@ impl MultiPartReader {
     fn parse(&self, data: Cow<[u8]>) -> Result<()> {
         let mut guard = self.inner.lock().unwrap();
 
-        if let Some(inner) = &mut *guard {
-            if matches!(inner.state, MultiPartParserState::Consumed) {
-                return Ok(());
-            }
-            return inner.parse_chunk(&data);
-        }
-
-        let Some(pos) = Finder::new(&self.boundary).find(&data) else {
-            return Err(error_parsing!("EOF before first boundary"));
+        let inner = match &mut *guard {
+            Some(inner) => inner,
+            None => guard.insert(Box::new(MultiPartParser::new(
+                &self.boundary,
+                self.encoding.clone(),
+                self.max_part_size,
+            ))),
         };
-        let rest = &data[pos + self.boundary.len()..];
-        if rest.len() < 2 || &rest[..2] != b"\r\n" {
-            return Err(error_parsing!("no CrLf after boundary"));
+        if matches!(inner.state, MultiPartParserState::Consumed) {
+            return Ok(());
         }
-
-        let parser = guard.insert(Box::new(MultiPartParser::new(
-            &self.boundary,
-            self.encoding.clone(),
-            self.max_part_size,
-        )));
-        parser.parse_chunk(rest)
+        inner.parse_chunk(&data)
     }
 
     fn contents(&self, py: Python) -> Result<Py<MultiPartContentsIter>> {
