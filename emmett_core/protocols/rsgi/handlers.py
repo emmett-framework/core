@@ -142,7 +142,7 @@ class HTTPHandler(RequestHandler):
         try:
             http = await self.router.dispatch(request, response)
         except HTTPResponse as http_exception:
-            http = http_exception
+            http = http_exception.with_traceback(None)
             #: render error with handlers if in app
             error_handler = self.app.error_handlers.get(http.status_code)
             if error_handler:
