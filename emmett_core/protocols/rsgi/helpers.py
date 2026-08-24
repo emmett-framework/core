@@ -30,21 +30,32 @@ class BodyWrapper:
 
 
 class ResponseStream(_ResponseStream):
-    __slots__ = []
+    __slots__ = ["_exc"]
 
     def __call__(self):
+        self._exc = None
         ctl_event = asyncio.Event()
         task_stream = asyncio.create_task(self._handle_stream(ctl_event))
         task_transport = asyncio.create_task(self._handle_conn(self._proto, task_stream, ctl_event))
         return self._control_flow(ctl_event, task_transport)
 
+    async def _handle_stream_iter(self, transport):
+        try:
+            async for item in self._target:
+                await self.send(transport, self._item_wrapper(item))
+        except Exception:
+            pass
+
     async def _handle_stream(self, ctl_event):
-        for method in self.response._flow_stream:
-            method()
-        transport = self._proto.response_stream(self.response.status, list(HTTPResponse.rsgi_headers(self)))
-        async for item in self._target:
-            await self.send(transport, self._item_wrapper(item))
-        ctl_event.set()
+        try:
+            for method in self.response._flow_stream:
+                method()
+            transport = self._proto.response_stream(self.response.status, list(HTTPResponse.rsgi_headers(self)))
+            await self._handle_stream_iter(transport)
+        except Exception as exc:
+            self._exc = exc
+        finally:
+            ctl_event.set()
 
     async def _handle_conn(self, protocol, stream_task, ctl_event):
         if ctl_event.is_set():
@@ -58,6 +69,8 @@ class ResponseStream(_ResponseStream):
     async def _control_flow(self, event, transport_task):
         await event.wait()
         transport_task.cancel()
+        if self._exc is not None:
+            raise self._exc
         return noop_response
 
     def send(self, transport, data):

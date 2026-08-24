@@ -62,9 +62,12 @@ class ResponseStream(_ResponseStream):
                 "headers": list(HTTPResponse.asgi_headers(self)),
             }
         )
-        async for item in self._target:
-            await self.send(self._item_wrapper(item))
-        await self._proto({"type": "http.response.body", "body": b"", "more_body": False})
+        try:
+            async for item in self._target:
+                await self.send(self._item_wrapper(item))
+            await self._proto({"type": "http.response.body", "body": b"", "more_body": False})
+        except Exception:
+            pass
         return noop_response
 
     def send(self, data):
