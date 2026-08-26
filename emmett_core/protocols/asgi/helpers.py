@@ -66,8 +66,8 @@ class ResponseStream(_ResponseStream):
             async for item in self._target:
                 await self.send(self._item_wrapper(item))
             await self._proto({"type": "http.response.body", "body": b"", "more_body": False})
-        except Exception:
-            pass
+        except Exception as exc:
+            exc.__traceback__ = None
         return noop_response
 
     def send(self, data):

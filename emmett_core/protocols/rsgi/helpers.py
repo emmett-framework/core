@@ -43,8 +43,8 @@ class ResponseStream(_ResponseStream):
         try:
             async for item in self._target:
                 await self.send(transport, self._item_wrapper(item))
-        except Exception:
-            pass
+        except Exception as exc:
+            exc.__traceback__ = None
 
     async def _handle_stream(self, ctl_event):
         try:
