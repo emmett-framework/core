@@ -50,7 +50,7 @@ Source = 'https://github.com/emmett-framework/core'
 
 [dependency-groups]
 build = [
-    'maturin~=1.13.0',
+    'maturin~=1.14',
 ]
 lint = [
     'ruff~=0.15.0',
@@ -67,7 +67,7 @@ all = [
 ]
 
 [build-system]
-requires = ['maturin>=1.8.0,<1.14.0']
+requires = ['maturin>=1.14.0,<2']
 build-backend = 'maturin'
 
 [tool.maturin]
@@ -109,7 +109,6 @@ extend-ignore = [
     'S110', # pass on exceptions is fine
     'S112',
     'UP031',
-    'UP038',
 ]
 mccabe = { max-complexity = 24 }
 

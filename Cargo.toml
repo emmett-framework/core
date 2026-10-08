@@ -41,7 +41,7 @@ http = "=1.4"
 httparse = "=1.10"
 memchr = "=2.8"
 mime = "=0.3"
-pyo3 = { version = "=0.28", features = ["anyhow", "extension-module", "generate-import-lib"] }
+pyo3 = { version = "=0.29", features = ["anyhow", "extension-module", "generate-import-lib"] }
 regex = "=1.12"
 ring = "=0.17"
 tempfile = "=3.27"
