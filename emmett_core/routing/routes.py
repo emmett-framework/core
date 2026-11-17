@@ -76,7 +76,7 @@ class Route:
         path = REGEX_STR.sub(r"(?P<\g<1>>[^/]+)", path)
         path = REGEX_ANY.sub(r"(?P<\g<1>>.*)", path)
         path = REGEX_ALPHA.sub(r"(?P<\g<1>>[^/\\W\\d_]+)", path)
-        path = REGEX_DATE.sub(r"(?P<\g<1>>\\d{4}-\\d{2}-\\d{2})", path)
+        path = REGEX_DATE.sub(r"(?P<\g<1>>[0-9]{4}-[0-9]{2}-[0-9]{2})", path)
         path = REGEX_FLOAT.sub(r"(?P<\g<1>>\\d+\.\\d+)", path)
         return f"^{path}$"
 
