@@ -40,7 +40,7 @@ class Request(IngressWrapper):
 
     @cachedprop
     def content_length(self) -> int:
-        return self.headers.get("content_length", 0, cast=int)
+        return int(self.headers.get("content-length", 0))
 
     _empty_body_methods = {v: v for v in ["GET", "HEAD", "OPTIONS"]}
 
