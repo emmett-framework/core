@@ -13,7 +13,7 @@ from .wrappers import Request, Response, Websocket
 
 
 REGEX_STATIC = re.compile(r"^/static/(?P<m>__[\w\-\.]+__/)?(?P<v>_\d+\.\d+\.\d+/)?(?P<f>.*?)$")
-REGEX_STATIC_LANG = re.compile(r"^/(?P<l>\w{2}/)?static/(?P<m>__[\w\-\.]__+/)?(?P<v>_\d+\.\d+\.\d+/)?(?P<f>.*?)$")
+REGEX_STATIC_LANG = re.compile(r"^/(?P<l>\w{2}/)?static/(?P<m>__[\w\-\.]+__/)?(?P<v>_\d+\.\d+\.\d+/)?(?P<f>.*?)$")
 
 
 class Handler:
@@ -83,12 +83,19 @@ class HTTPHandler(RequestHandler):
         path = path[self.router._prefix_main_len :] or "/"
         return self.static_handler(scope, protocol, path)
 
+    @staticmethod
+    def _in_static_path(file: str, path: str) -> bool:
+        return file.startswith(os.path.join(path, ""))
+
+    def _static_mod(self, name: str):
+        return self.app._modules.get(name[2:-3])
+
     def _static_lang_matcher(self, path: str) -> tuple[str | None, str | None]:
         match = REGEX_STATIC_LANG.match(path)
         if match:
             lang, mname, version, file_name = match.group("l", "m", "v", "f")
             if mname:
-                mod = self.app._modules.get(mname)
+                mod = self._static_mod(mname)
                 spath = mod._static_path if mod else self.app.static_path
             else:
                 spath = self.app.static_path
@@ -97,7 +104,7 @@ class HTTPHandler(RequestHandler):
                 lang_file = os.path.realpath(os.path.join(spath, lang, file_name))
                 if os.path.exists(lang_file):
                     static_file = lang_file
-            if not static_file.startswith(spath):
+            if not self._in_static_path(static_file, spath):
                 return None, None
             return static_file, version
         return None, None
@@ -106,14 +113,14 @@ class HTTPHandler(RequestHandler):
         if path.startswith("/static/"):
             mname, version, file_name = REGEX_STATIC.match(path).group("m", "v", "f")
             if mname and file_name:
-                mod = self.app._modules.get(mname[2:-3])
+                mod = self._static_mod(mname)
                 spath = mod._static_path if mod else self.app.static_path
             elif file_name:
                 spath = self.app.static_path
             else:
                 return None, None
             static_file = os.path.realpath(os.path.join(spath, file_name))
-            if not static_file.startswith(spath):
+            if not self._in_static_path(static_file, spath):
                 return None, None
             return static_file, version
         return None, None

@@ -184,7 +184,7 @@ class HTTPFileResponse(HTTPResponse):
         try:
             stat_data = os.stat(self.file_path)
             if not stat.S_ISREG(stat_data.st_mode):
-                await HTTPResponse(403).send(scope, send)
+                await HTTPResponse(403).asgi(scope, send)
                 return
             self._headers.update(self._get_stat_headers(stat_data))
             await self._send_headers(send)
@@ -194,9 +194,9 @@ class HTTPFileResponse(HTTPResponse):
                 await self._send_body(send)
         except OSError as e:
             if e.errno == errno.EACCES:
-                await HTTPResponse(403).send(scope, send)
+                await HTTPResponse(403).asgi(scope, send)
             else:
-                await HTTPResponse(404).send(scope, send)
+                await HTTPResponse(404).asgi(scope, send)
 
     async def _send_body(self, send):
         async with loop_open_file(self.file_path, mode="rb") as f:
